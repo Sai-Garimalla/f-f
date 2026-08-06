@@ -39,13 +39,21 @@ app.use((err, req, res, next) => {
 async function start() {
   try {
     await initDB();
-    app.listen(PORT, () => {
-      console.log(`🔥 Fire & Flavour server running on http://localhost:${PORT}`);
-    });
+    if (require.main === module) {
+      app.listen(PORT, () => {
+        console.log(`🔥 Fire & Flavour server running on http://localhost:${PORT}`);
+      });
+    }
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);
-    process.exit(1);
+    if (require.main === module) {
+      process.exit(1);
+    }
   }
 }
 
+// Start immediately for local, or just init DB for serverless
 start();
+
+// Export the Express app so Vercel can run it as a serverless function
+module.exports = app;

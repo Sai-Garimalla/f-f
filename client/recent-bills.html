@@ -225,7 +225,7 @@ async function reprint(billId, type) {
     if (data.receipt_b64 || data.kot_b64) {
       let combinedB64 = type === 'receipt' ? data.receipt_b64 : (type === 'kot' ? data.kot_b64 : (data.receipt_b64 || data.kot_b64));
       if (/android/i.test(navigator.userAgent)) {
-        window.location.href = `intent:base64,${combinedB64}#Intent;scheme=rawbt;type=application/vnd.epson.escpos;package=ru.a402d.rawbtprinter;end;`;
+        window.location.href = `rawbt:base64,${combinedB64}`;
       }
     }
     const pr = data.print_results || [];

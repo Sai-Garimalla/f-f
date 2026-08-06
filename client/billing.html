@@ -811,7 +811,7 @@ async function saveBill(print=true) {
        }
        // Only trigger RawBT if we are on a mobile device (Android)
        if (/android/i.test(navigator.userAgent)) {
-          window.location.href = `intent:base64,${combinedB64}#Intent;scheme=rawbt;type=application/vnd.epson.escpos;package=ru.a402d.rawbtprinter;end;`;
+          window.location.href = `rawbt:base64,${combinedB64}`;
        }
     }
     const pr = res.print_results || [];

@@ -1,1 +1,4 @@
-node_modules/\n.env\n.DS_Store
+node_modules/
+.env
+.DS_Store
+gh_2.42.1_linux_amd64/

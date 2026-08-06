@@ -225,7 +225,11 @@ async function reprint(billId, type) {
     if (data.receipt_b64 || data.kot_b64) {
       let combinedB64 = type === 'receipt' ? data.receipt_b64 : (type === 'kot' ? data.kot_b64 : (data.receipt_b64 || data.kot_b64));
       if (/android/i.test(navigator.userAgent)) {
-        window.location.href = `rawbt:base64,${combinedB64}`;
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = `rawbt:base64,${combinedB64}`;
+        document.body.appendChild(iframe);
+        setTimeout(() => iframe.remove(), 2000);
       }
     }
     const pr = data.print_results || [];

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recent Bills — Fire & Flavour</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+  .filters input, .filters select { max-width:180px; }
+  .bill-detail-items table { font-size:12px; }
+  /* Mobile card list */
+  .bills-card-list { display:none; flex-direction:column; gap:10px; }
+  .bill-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:background .15s; }
+  .bill-card:active { background:var(--surface2); }
+  .bill-card-left { display:flex; gap:12px; align-items:center; }
+  .bill-token { background:var(--gradient); padding:6px 12px; border-radius:8px; font-weight:800; font-size:16px; color:#fff; min-width:44px; text-align:center; }
+  .bill-card-info { display:flex; flex-direction:column; gap:2px; }
+  .bill-card-name { font-size:13px; font-weight:600; }
+  .bill-card-meta { font-size:11px; color:var(--text-muted); }
+  .bill-card-right { text-align:right; }
+  .bill-card-amount { font-size:16px; font-weight:800; color:var(--flame-light); }
+  .bill-card-type { font-size:11px; color:var(--text-muted); margin-top:2px; }
+  @media (max-width:768px) {
+    .table-wrap, #bills-table { display:none; }
+    .bills-card-list { display:flex; }
+    .filters input, .filters select { max-width:100%; flex:1 1 140px; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main-content">
+    <div class="page-header">
+      <div><h2>📋 Recent Bills</h2><p>Full billing history with reprint options</p></div>
+      <a href="/billing.html" class="btn btn-primary">+ New Bill</a>
+    </div>
+    <div class="page-body">
+      <div class="card">
+        <div class="filters">
+          <input type="text" class="form-control" id="search-input" placeholder="🔍 Bill no, phone, token…">
+          <input type="date" class="form-control" id="date-filter">
+          <button class="btn btn-secondary" onclick="loadBills()">Filter</button>
+          <button class="btn btn-secondary" onclick="clearFilters()">Clear</button>
+          <span id="summary-text" style="font-size:12px;color:var(--text-muted);margin-left:auto"></span>
+        </div>
+        <div class="table-wrap">
+          <table id="bills-table">
+            <thead><tr>
+              <th>Token</th><th>Type</th><th>Bill No</th><th>Date & Time</th>
+              <th>Customer</th><th>Total</th><th>Cashier</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="bills-tbody">
+              <tr><td colspan="7" style="text-align:center;padding:40px"><div class="loader"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Mobile card list (shown instead of table on small screens) -->
+        <div class="bills-card-list" id="bills-card-list"></div>
+        <div id="pagination" style="display:flex;justify-content:center;gap:8px;margin-top:14px;align-items:center"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bill Detail Modal -->
+<div class="modal-overlay" id="bill-modal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-bill-title">Bill Details</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="bill-detail-content"></div>
+      <div id="modal-print-status" style="padding:0 10px 8px"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+        <button class="btn btn-secondary" id="reprint-receipt-btn">🖨 Receipt</button>
+        <button class="btn btn-secondary" id="reprint-kot-btn">🍳 KOT</button>
+        <button class="btn btn-primary" id="reprint-both-btn">🖨 Print Both</button>
+      </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+if (!authGuard()) throw 0;
+initSidebar('bills');
+
+let currentPage = 1;
+let currentBillId = null;
+
+// Set default date to today
+document.getElementById('date-filter').value = new Date().toISOString().split('T')[0];
+
+async function loadBills(page = 1) {
+  currentPage = page;
+  const search = document.getElementById('search-input').value;
+  const date = document.getElementById('date-filter').value;
+  const tbody = document.getElementById('bills-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px"><div class="loader"></div></td></tr>';
+
+  try {
+    const params = new URLSearchParams({ page, limit: 20 });
+    if (search) params.set('search', search);
+    if (date) params.set('date', date);
+
+    const data = await apiFetch('/bills?' + params);
+    const { bills, pagination } = data;
+
+    if (!bills.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><p>No bills found</p></div></td></tr>';
+      document.getElementById('pagination').innerHTML = '';
+      document.getElementById('summary-text').textContent = '';
+      return;
+    }
+
+    document.getElementById('summary-text').textContent = `${pagination.total} bill(s) found`;
+
+    tbody.innerHTML = bills.map(b => `
+      <tr>
+        <td><span style="background:var(--gradient);padding:3px 10px;border-radius:6px;font-weight:800">#${b.token_number}</span></td>
+        <td style="font-size:12px;font-weight:600;color:var(--flame-light)">${b.order_type || 'Dine-in'}</td>
+        <td style="font-size:11px;font-family:monospace">${b.bill_number}</td>
+        <td style="font-size:11px">${formatDateTime(b.created_at)}</td>
+        <td style="font-size:12px">${b.customer_phone || '<span style="color:var(--text-muted)">Walk-in</span>'}</td>
+        <td style="font-weight:700;color:var(--flame-light)">${formatCurrency(b.grand_total)}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${b.cashier_name || '—'}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="viewBill(${b.bill_id})">👁 View</button></td>
+      </tr>`).join('');
+
+    // Mobile card list
+    const cardList = document.getElementById('bills-card-list');
+    cardList.innerHTML = bills.map(b => `
+      <div class="bill-card" onclick="viewBill(${b.bill_id})">
+        <div class="bill-card-left">
+          <div class="bill-token">#${b.token_number}</div>
+          <div class="bill-card-info">
+            <div class="bill-card-name">${b.customer_phone || 'Walk-in'}</div>
+            <div class="bill-card-meta">${formatDateTime(b.created_at)} · ${b.order_type || 'Dine-in'}</div>
+          </div>
+        </div>
+        <div class="bill-card-right">
+          <div class="bill-card-amount">${formatCurrency(b.grand_total)}</div>
+          <div class="bill-card-type">${b.cashier_name || ''}</div>
+        </div>
+      </div>`).join('');
+
+    // Pagination
+    const pag = document.getElementById('pagination');
+    pag.innerHTML = '';
+    if (pagination.pages > 1) {
+      for (let i = 1; i <= pagination.pages; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm ' + (i === page ? 'btn-primary' : 'btn-secondary');
+        btn.textContent = i;
+        btn.onclick = () => loadBills(i);
+        pag.appendChild(btn);
+      }
+    }
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function viewBill(billId) {
+  currentBillId = billId;
+  const content = document.getElementById('bill-detail-content');
+  content.innerHTML = '<div class="loader-full"><div class="loader"></div></div>';
+  document.getElementById('bill-modal').classList.add('open');
+
+  try {
+    const { bill, items } = await apiFetch('/bills/' + billId);
+    document.getElementById('modal-bill-title').textContent = `Bill #${bill.bill_number}`;
+
+    const subtotal = parseFloat(bill.subtotal);
+    const delivery = parseFloat(bill.delivery_charge);
+    const discAmt = parseFloat(bill.discount_amount);
+    const grand = parseFloat(bill.grand_total);
+
+    content.innerHTML = `
+      <div style="text-align:center; margin-bottom:16px;">
+        <img src="assets/logo.png" alt="Fire & Flavour Logo" style="height:60px; object-fit:contain;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;font-size:12px">
+        <div><span style="color:var(--text-muted)">Token</span><br><strong style="font-size:18px;color:var(--flame-light)">#${bill.token_number}</strong></div>
+        <div><span style="color:var(--text-muted)">Type</span><br><strong style="font-size:14px">${bill.order_type || 'Dine-in'}</strong></div>
+        <div><span style="color:var(--text-muted)">Date</span><br><strong>${formatDateTime(bill.created_at)}</strong></div>
+        <div style="grid-column:span 2"><span style="color:var(--text-muted)">Bill No</span><br><code style="font-size:10px">${bill.bill_number}</code></div>
+        <div><span style="color:var(--text-muted)">Customer</span><br><strong>${bill.customer_phone || 'Walk-in'}</strong></div>
+      </div>
+      <div class="bill-detail-items table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Code</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+          <tbody>${items.map(i => `
+            <tr>
+              <td>${i.item_name}${i.is_manual ? ' <span class="badge badge-info">Manual</span>' : ''}</td>
+              <td style="font-size:10px">${i.item_code || '—'}</td>
+              <td>${i.quantity}</td>
+              <td>${formatCurrency(i.unit_price)}</td>
+              <td style="font-weight:600">${formatCurrency(i.line_total)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:8px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>
+        ${bill.delivery_enabled ? `<div style="display:flex;justify-content:space-between;padding:3px 0"><span>Delivery</span><span>${formatCurrency(delivery)}</span></div>` : ''}
+        ${bill.discount_enabled ? `<div style="display:flex;justify-content:space-between;padding:3px 0"><span>Discount</span><span style="color:#EF9A9A">-${formatCurrency(discAmt)}</span></div>` : ''}
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border);margin-top:4px;font-size:15px;font-weight:800;color:var(--flame-light)"><span>GRAND TOTAL</span><span>${formatCurrency(grand)}</span></div>
+      </div>`;
+
+    // Reprint buttons
+    document.getElementById('reprint-receipt-btn').onclick = () => reprint(billId, 'receipt');
+    document.getElementById('reprint-kot-btn').onclick = () => reprint(billId, 'kot');
+    document.getElementById('reprint-both-btn').onclick = () => reprint(billId, 'both');
+  } catch(e) {
+    content.innerHTML = `<p style="color:var(--danger)">${e.message}</p>`;
+  }
+}
+
+async function reprint(billId, type) {
+  const statusEl = document.getElementById('modal-print-status');
+  statusEl.innerHTML = `<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">⏳ Sending to printer…</div>`;
+  try {
+    const data = await apiFetch(`/billing/${billId}/reprint`, { method: 'POST', body: JSON.stringify({ type }) });
+    if (data.receipt_b64 || data.kot_b64) {
+      let combinedB64 = type === 'receipt' ? data.receipt_b64 : (type === 'kot' ? data.kot_b64 : (data.receipt_b64 || data.kot_b64));
+      if (/android/i.test(navigator.userAgent)) {
+        window.location.href = `intent:base64,${combinedB64}#Intent;scheme=rawbt;type=application/vnd.epson.escpos;package=ru.a402d.rawbtprinter;end;`;
+      }
+    }
+    const pr = data.print_results || [];
+    if (!pr.length) {
+      statusEl.innerHTML = `<div style="background:#2a2a00;border:1px solid #ffcc00;border-radius:8px;padding:8px 12px;font-size:12px;color:#ffcc00">⚠️ No printer configured. Go to Settings to set printer IP.</div>`;
+    } else {
+      statusEl.innerHTML = pr.map(p => {
+        if (p.success) return `<div style="background:#0a2a0a;border:1px solid var(--success);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--success);margin-bottom:4px">✅ ${p.type.toUpperCase()} printed successfully</div>`;
+        if (p.skipped) return `<div style="background:#2a2a00;border:1px solid #ffcc00;border-radius:8px;padding:8px 10px;font-size:12px;color:#ffcc00;margin-bottom:4px">⚠️ ${p.type.toUpperCase()}: ${p.reason || 'Printer not configured in Settings'}</div>`;
+        return `<div style="background:#2a0a0a;border:1px solid var(--danger);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--danger);margin-bottom:4px">❌ ${p.type.toUpperCase()} FAILED: ${p.error || 'Connection error — check printer IP & power'}</div>`;
+      }).join('');
+    }
+  } catch(e) {
+    statusEl.innerHTML = `<div style="background:#2a0a0a;border:1px solid var(--danger);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--danger)">❌ Error: ${e.message}</div>`;
+  }
+}
+
+function closeModal() { document.getElementById('bill-modal').classList.remove('open'); }
+function clearFilters() { document.getElementById('search-input').value = ''; document.getElementById('date-filter').value = ''; loadBills(); }
+
+document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') loadBills(); });
+loadBills();
+</script>
+</body>
+</html>

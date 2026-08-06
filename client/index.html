@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fire & Flavour — Login</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body { background: var(--charcoal); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-bg { position: fixed; inset: 0; background: radial-gradient(ellipse at 20% 50%, rgba(183,28,28,0.15) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(245,124,0,0.1) 0%, transparent 60%); pointer-events: none; }
+  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; width: 380px; padding: 36px 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.5); position: relative; z-index: 1; animation: fadeUp .4s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .login-logo { text-align: center; margin-bottom: 28px; }
+  .login-logo .flame-icon { font-size: 48px; line-height: 1; display: block; }
+  .login-logo h1 { font-size: 22px; font-weight: 800; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-top: 8px; }
+  .login-logo p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .login-form .form-control { background: #1A1A1A; border-color: #3A3A3A; }
+  .login-form .form-control:focus { border-color: var(--flame); box-shadow: 0 0 0 3px rgba(245,124,0,0.15); }
+  .remember-row { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .remember-row input[type=checkbox] { accent-color: var(--flame); width: 14px; height: 14px; cursor: pointer; }
+  .remember-row label { font-size: 12px; color: var(--text-muted); cursor: pointer; }
+  .btn-login { width: 100%; padding: 12px; font-size: 14px; font-weight: 700; border-radius: 9px; letter-spacing: .3px; }
+  .setup-link { text-align: center; margin-top: 14px; font-size: 12px; color: var(--text-muted); }
+  .setup-link a { color: var(--flame-light); cursor: pointer; }
+  .setup-link a:hover { text-decoration: underline; }
+  .error-msg { background: rgba(229,57,53,0.15); border: 1px solid rgba(229,57,53,0.3); color: #EF9A9A; padding: 10px 12px; border-radius: 7px; font-size: 12px; margin-bottom: 14px; display: none; }
+  /* Setup form */
+  #setup-card { display: none; }
+  .divider { text-align: center; font-size: 10px; color: var(--text-muted); margin: 12px 0; }
+</style>
+</head>
+<body>
+<div class="login-bg"></div>
+
+<!-- Login Card -->
+<div class="login-card" id="login-card">
+  <div class="login-logo">
+    <span class="flame-icon">🔥</span>
+    <h1>Fire & Flavour</h1>
+    <p>Restaurant Management System</p>
+  </div>
+  <form class="login-form" id="login-form" autocomplete="on">
+    <div id="login-error" class="error-msg"></div>
+    <div class="form-group">
+      <label class="form-label">Username or Email</label>
+      <input id="login-identifier" type="text" class="form-control" placeholder="Enter username or email" autocomplete="username" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input id="login-password" type="password" class="form-control" placeholder="Enter password" autocomplete="current-password" required>
+    </div>
+    <div class="remember-row">
+      <input type="checkbox" id="remember-me">
+      <label for="remember-me">Remember me for 30 days</label>
+    </div>
+    <button type="submit" class="btn btn-primary btn-login" id="login-btn">Sign In</button>
+    <div class="setup-link">First time? <a id="goto-setup">Set up admin account</a></div>
+  </form>
+</div>
+
+<!-- Setup Card -->
+<div class="login-card" id="setup-card">
+  <div class="login-logo">
+    <span class="flame-icon">🔥</span>
+    <h1>Create Admin Account</h1>
+    <p>One-time setup</p>
+  </div>
+  <form id="setup-form">
+    <div id="setup-error" class="error-msg"></div>
+    <div class="form-group">
+      <label class="form-label">Full Name</label>
+      <input id="setup-name" type="text" class="form-control" placeholder="Your full name" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input id="setup-username" type="text" class="form-control" placeholder="admin" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input id="setup-email" type="email" class="form-control" placeholder="admin@fireflav.com" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input id="setup-password" type="password" class="form-control" placeholder="Strong password" required>
+    </div>
+    <button type="submit" class="btn btn-primary btn-login">Create Admin Account</button>
+    <div class="setup-link"><a id="back-to-login">← Back to Login</a></div>
+  </form>
+</div>
+
+<script>
+const API = '/api';
+
+async function checkSetup() {
+  try {
+    const r = await fetch(`${API}/auth/setup-status`);
+    const d = await r.json();
+    if (d.needsSetup) showSetup();
+  } catch(e) {}
+}
+
+function showSetup() {
+  document.getElementById('login-card').style.display = 'none';
+  document.getElementById('setup-card').style.display = 'block';
+}
+
+function showLogin() {
+  document.getElementById('setup-card').style.display = 'none';
+  document.getElementById('login-card').style.display = 'block';
+}
+
+// Check if already logged in
+const token = localStorage.getItem('ff_token');
+if (token) {
+  fetch(`${API}/auth/verify`, { headers: { Authorization: `Bearer ${token}` } })
+    .then(r => r.json()).then(d => { if (d.valid) window.location.href = '/dashboard.html'; })
+    .catch(() => {});
+}
+
+checkSetup();
+
+document.getElementById('goto-setup').addEventListener('click', showSetup);
+document.getElementById('back-to-login').addEventListener('click', showLogin);
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  try {
+    const r = await fetch(`${API}/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: document.getElementById('login-identifier').value,
+        password: document.getElementById('login-password').value,
+        rememberMe: document.getElementById('remember-me').checked
+      })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Login failed');
+    localStorage.setItem('ff_token', d.token);
+    localStorage.setItem('ff_user', JSON.stringify(d.user));
+    window.location.href = '/dashboard.html';
+  } catch (ex) {
+    err.textContent = ex.message; err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+});
+
+document.getElementById('setup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = document.getElementById('setup-error');
+  err.style.display = 'none';
+  try {
+    const r = await fetch(`${API}/auth/setup`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: document.getElementById('setup-name').value,
+        username: document.getElementById('setup-username').value,
+        email: document.getElementById('setup-email').value,
+        password: document.getElementById('setup-password').value
+      })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Setup failed');
+    showLogin();
+  } catch (ex) {
+    err.textContent = ex.message; err.style.display = 'block';
+  }
+});
+</script>
+</body>
+</html>

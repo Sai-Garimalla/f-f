@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Bill — Fire & Flavour</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .page-body { padding: 14px 16px; }
+  .billing-layout { height: calc(100vh - 105px); }
+  /* EZO Topbar */
+  .billing-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .topbar-left { display:flex; align-items:center; gap:10px; }
+  .topbar-title { font-size:16px; font-weight:700; }
+  .topbar-token { font-size:20px; font-weight:800; color:var(--flame-light); min-width:30px; }
+  .topbar-center { display:flex; align-items:center; }
+  .topbar-right { display:flex; align-items:center; gap:8px; }
+  .topbar-phone { max-width:160px; padding:6px 10px; }
+  /* Order type pills */
+  .ot-pills { display:flex; gap:4px; }
+  .ot-pill { padding:5px 12px; border-radius:20px; font-size:11px; font-weight:700; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; transition:all .15s; white-space:nowrap; }
+  .ot-pill:hover { border-color:var(--flame); color:var(--flame-light); }
+  .ot-pill.active { background:var(--gradient); border-color:transparent; color:#fff; }
+  /* Quick add */
+  .quick-add { padding:6px 14px; border-bottom:1px solid var(--border); background:rgba(245,124,0,0.04); }
+  .quick-add form { display:flex; gap:5px; }
+  .qa-name { flex:2; }
+  .qa-price { width:80px; }
+  .qa-qty { width:50px; }
+  .np-btn { padding:12px; font-size:18px; font-weight:700; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; }
+  .np-btn:active { background:var(--flame-light); color:white; }
+  @media(max-width:768px) {
+    .billing-topbar { flex-direction:column; align-items:stretch; }
+    .topbar-center { margin-top:8px; justify-content:center; }
+    .topbar-right { margin-top:8px; flex-wrap:wrap; justify-content:space-between; }
+  }
+  .customer-bar input { flex: 1; max-width: 220px; }
+  .addon-toggles { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .addon-section { padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 20px; flex-wrap: wrap; align-items: center; background: var(--surface); }
+  .addon-group { display: flex; gap: 8px; align-items: center; }
+  .addon-label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+  .del-btn { padding: 3px 10px; font-size: 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text); }
+  .del-btn.active { background: var(--flame); border-color: var(--flame); color: #fff; }
+  .custom-del { width: 60px; }
+  .discount-opts { display: flex; gap: 6px; align-items: center; }
+  .manual-row { padding: 6px 14px; border-bottom: 1px solid var(--border); background: rgba(245,124,0,0.05); }
+  .manual-row form { display: flex; gap: 6px; }
+  .manual-row input { flex: 1; padding: 5px 8px; }
+  .bill-header { padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing:.5px; text-transform:uppercase; }
+  .empty-bill { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); gap: 8px; }
+  .empty-bill .big-icon { font-size: 40px; }
+
+  /* ── Professional Cart Item Row ── */
+  .cart-item {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    gap: 7px;
+    transition: background .15s;
+  }
+  .cart-item:hover { background: rgba(255,255,255,0.025); }
+  .cart-item-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .cart-item-info { flex: 1; min-width: 0; }
+  .cart-item-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+  .cart-item-code {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .cart-item-total {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--flame-light);
+    white-space: nowrap;
+    padding-top: 1px;
+  }
+  .cart-item-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .cart-qty-ctrl {
+    display: flex;
+    align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .cart-qty-btn {
+    width: 32px;
+    height: 30px;
+    border: none;
+    background: none;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s;
+  }
+  .cart-qty-btn:hover { background: rgba(245,124,0,0.2); color: var(--flame-light); }
+  .cart-qty-val {
+    min-width: 32px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    padding: 0 4px;
+    line-height: 30px;
+  }
+  .cart-price-input {
+    width: 72px;
+    height: 30px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 0 8px;
+    color: var(--text);
+    font-size: 12px;
+    text-align: right;
+    font-family: inherit;
+  }
+  .cart-price-input:focus { outline: none; border-color: var(--flame); }
+  .cart-price-label { font-size: 10px; color: var(--text-muted); }
+  .cart-remove-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    border: 1px solid rgba(229,57,53,0.3);
+    background: rgba(229,57,53,0.08);
+    color: #EF9A9A;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+  }
+  .cart-remove-btn:hover { background: rgba(229,57,53,0.25); color: #fff; border-color: var(--danger); }
+  .cart-unit-price { font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main-content">
+    <!-- EZO-style top bar -->
+    <div class="billing-topbar">
+      <div class="topbar-left">
+        <span class="topbar-title">🧾 New Bill</span>
+        <span class="topbar-token" id="token-display">—</span>
+      </div>
+      <div class="topbar-center">
+        <div class="ot-pills" id="order-type-pills">
+          <button class="ot-pill active" data-type="Dine-in">🍽 Dine-in</button>
+          <button class="ot-pill" data-type="Takeaway">🛍 Takeaway</button>
+          <button class="ot-pill" data-type="Delivery">🛵 Delivery</button>
+        </div>
+        <input type="hidden" id="order-type" value="Dine-in">
+      </div>
+      <div class="topbar-right">
+        <div id="order-meta-wrap" style="display:flex;gap:8px;">
+          <input type="text" id="order-table" class="form-control" placeholder="Table No" style="max-width:80px;padding:6px 10px;">
+          <select id="order-location" class="form-control" style="display:none; max-width:110px; padding:6px 10px;" onchange="toggleLocationOther()">
+            <option value="">Location</option>
+            <option value="Leaders">Leaders</option>
+            <option value="B3">B3</option>
+            <option value="Queens">Queens</option>
+            <option value="VVH">VVH</option>
+            <option value="Kings">Kings</option>
+            <option value="Prince">Prince</option>
+            <option value="IGH">IGH</option>
+            <option value="Other">Other</option>
+          </select>
+          <input type="text" id="order-location-other" class="form-control" placeholder="Specify" style="display:none; max-width:90px; padding:6px 10px;">
+        </div>
+        <input type="tel" id="customer-phone" class="topbar-phone form-control" placeholder="📞 Phone">
+        <button class="btn btn-secondary btn-sm" onclick="holdBill()">⏸ Hold</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearBill()">🗑 Clear</button>
+      </div>
+    </div>
+
+    <div class="billing-layout">
+      <!-- Mobile Tab Bar -->
+      <div class="mob-tabs">
+        <button class="mob-tab-btn active" id="tab-menu-btn" onclick="switchTab('menu')">🍽 Menu</button>
+        <button class="mob-tab-btn" id="tab-order-btn" onclick="switchTab('order')">🛒 Order <span id="tab-count"></span></button>
+      </div>
+
+      <!-- LEFT: Menu Search -->
+      <div class="search-panel mob-panel active" id="panel-menu">
+        <div class="search-header">
+          <div style="display:flex;gap:8px;">
+            <div class="search-input-wrap" style="flex:1">
+              <span class="search-icon">🔍</span>
+              <input type="text" class="form-control" id="menu-search" placeholder="Search items or code…" autocomplete="off">
+            </div>
+            <button class="btn btn-secondary" onclick="toggleNumpad()" title="Touch Numpad">🔢</button>
+          </div>
+        </div>
+        <div id="touch-numpad" style="display:none; padding:10px; background:var(--surface2); border-bottom:1px solid var(--border);">
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+            <button class="np-btn" onclick="npType(1)">1</button>
+            <button class="np-btn" onclick="npType(2)">2</button>
+            <button class="np-btn" onclick="npType(3)">3</button>
+            <button class="np-btn" onclick="npType(4)">4</button>
+            <button class="np-btn" onclick="npType(5)">5</button>
+            <button class="np-btn" onclick="npType(6)">6</button>
+            <button class="np-btn" onclick="npType(7)">7</button>
+            <button class="np-btn" onclick="npType(8)">8</button>
+            <button class="np-btn" onclick="npType(9)">9</button>
+            <button class="np-btn" onclick="npType('C')">C</button>
+            <button class="np-btn" onclick="npType(0)">0</button>
+            <button class="np-btn" onclick="npAdd()" style="background:var(--flame);color:white;border:none;">Add</button>
+          </div>
+        </div>
+        <div class="category-tabs" id="category-tabs">
+          <button class="cat-tab active" data-cat="">All</button>
+        </div>
+        <div class="menu-grid" id="menu-grid">
+          <div style="grid-column:span 2;padding:40px;text-align:center"><div class="loader"></div></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Order Panel -->
+      <div class="bill-panel mob-panel" id="panel-order">
+
+        <!-- Quick Add -->
+        <div class="quick-add">
+          <form id="manual-form">
+            <input type="text" class="form-control qa-name" id="manual-name" placeholder="Custom item name…">
+            <input type="number" class="form-control qa-price" id="manual-price" placeholder="₹ Price" min="0" step="0.01">
+            <input type="number" class="form-control qa-qty" id="manual-qty" value="1" min="1">
+            <button type="submit" class="btn btn-secondary btn-sm">＋ Add</button>
+          </form>
+        </div>
+
+        <!-- Delivery & Discount -->
+        <div class="addon-section">
+          <div class="addon-group">
+            <label class="addon-label">🚗 Delivery</label>
+            <label class="toggle"><input type="checkbox" id="delivery-toggle"><span class="toggle-slider"></span></label>
+            <div id="delivery-opts" style="display:none;display:flex;gap:4px">
+              <button class="del-btn" data-val="5">₹5</button>
+              <button class="del-btn" data-val="10">₹10</button>
+              <button class="del-btn" data-val="15">₹15</button>
+              <button class="del-btn" data-val="20">₹20</button>
+              <input type="number" class="form-control custom-del" id="custom-delivery" placeholder="Custom" min="0">
+            </div>
+          </div>
+          <div class="addon-group">
+            <label class="addon-label">🏷 Discount</label>
+            <label class="toggle"><input type="checkbox" id="discount-toggle"><span class="toggle-slider"></span></label>
+            <div id="discount-opts" style="display:none;display:flex;gap:6px;align-items:center">
+              <select class="form-control" id="discount-type" style="width:70px;padding:4px 6px">
+                <option value="percentage">%</option>
+                <option value="fixed">₹</option>
+              </select>
+              <input type="number" class="form-control" id="discount-val" placeholder="0" min="0" step="0.01" style="width:70px">
+            </div>
+          </div>
+        </div>
+
+        <!-- Items List -->
+        <div class="bill-items-list" id="bill-items-list">
+          <div class="empty-bill">
+            <div class="big-icon">🛒</div>
+            <p>Add items from the menu</p>
+          </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="totals-panel">
+          <div class="total-row"><span>Subtotal</span><span id="t-subtotal">₹0.00</span></div>
+          <div class="total-row" id="delivery-row" style="display:none"><span>Delivery</span><span id="t-delivery">₹0.00</span></div>
+          <div class="total-row" id="discount-row" style="display:none"><span>Discount</span><span id="t-discount" style="color:#EF9A9A">-₹0.00</span></div>
+          <div class="total-row grand"><span>GRAND TOTAL</span><span id="t-grand">₹0.00</span></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="bill-actions">
+          <button class="btn btn-primary btn-lg" style="flex:1" id="print-btn" onclick="showPrintPreview()">🖨 Save &amp; Print</button>
+          <button class="btn btn-success" style="flex:1" id="save-btn" onclick="saveBillOnly()">💾 Save Only</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Print Preview Modal -->
+<div class="modal-overlay" id="preview-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title">Receipt Preview</span>
+      <button class="modal-close" onclick="closePreviewModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <pre id="preview-content" style="font-family:monospace;font-size:13px;background:#1A1A1A;padding:16px;border-radius:8px;overflow-x:auto;color:#FFF;white-space:pre;"></pre>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closePreviewModal()">Cancel</button>
+      <button class="btn btn-primary" id="confirm-print-btn" onclick="confirmSaveAndPrint()">✅ Confirm & Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bill Success Modal -->
+<div class="modal-overlay" id="success-modal">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <div class="modal-body" style="padding:30px 24px">
+      <div style="font-size:50px">✅</div>
+      <h3 style="margin:12px 0 6px;font-size:18px">Bill Saved!</h3>
+      <div class="token-badge" style="display:inline-flex;font-size:24px;padding:8px 20px;margin:10px 0" id="success-token">—</div>
+      <div style="font-size:13px;color:var(--text-muted)" id="success-billno"></div>
+      <div style="font-size:20px;font-weight:800;color:var(--flame-light);margin:10px 0" id="success-total"></div>
+      <div id="print-status" style="margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px">
+        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('kot')">🖨 Reprint KOT</button>
+        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('receipt')">🖨 Reprint Receipt</button>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button class="btn btn-secondary" onclick="closeSuccessModal()">New Bill</button>
+        <a href="/recent-bills.html" class="btn btn-primary">View Bills</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+if (!authGuard()) throw 0;
+initSidebar('billing');
+
+// Order type pills
+document.querySelectorAll('.ot-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.ot-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    const type = pill.dataset.type;
+    document.getElementById('order-type').value = type;
+    
+    // Toggle Table / Location inputs
+    const tbTable = document.getElementById('order-table');
+    const tbLoc = document.getElementById('order-location');
+    const tbLocOther = document.getElementById('order-location-other');
+    tbTable.style.display = type === 'Dine-in' ? 'block' : 'none';
+    tbLoc.style.display = type === 'Delivery' ? 'block' : 'none';
+    if (type !== 'Delivery') tbLocOther.style.display = 'none';
+    else toggleLocationOther();
+
+    // Show delivery option automatically if Delivery selected
+    if (type === 'Delivery') {
+      document.getElementById('delivery-toggle').checked = true;
+      deliveryEnabled = true;
+      document.getElementById('delivery-opts').style.display = 'flex';
+      updateTotals();
+    }
+  });
+});
+
+function toggleLocationOther() {
+  const val = document.getElementById('order-location').value;
+  document.getElementById('order-location-other').style.display = val === 'Other' ? 'block' : 'none';
+}
+
+let billItems = [];
+let menuItems = [];
+let activeCategory = '';
+let deliveryCharge = 0;
+let deliveryEnabled = false;
+let discountEnabled = false;
+let printIntent = false;
+let currentBillId = null;
+
+// ── Mobile tab switching ──
+function switchTab(tab) {
+  const isMenu = tab === 'menu';
+  document.getElementById('panel-menu').classList.toggle('active', isMenu);
+  document.getElementById('panel-order').classList.toggle('active', !isMenu);
+  document.getElementById('tab-menu-btn').classList.toggle('active', isMenu);
+  document.getElementById('tab-order-btn').classList.toggle('active', !isMenu);
+  updateTotals(); // re-eval FAB visibility
+}
+
+// ── Inject floating cart FAB (mobile only) ──
+(function() {
+  const fab = document.createElement('button');
+  fab.id = 'cart-fab';
+  fab.className = 'cart-fab';
+  fab.innerHTML = `<span>\ud83d\udedd View Order</span><span class="cart-fab-count" id="fab-count"></span>`;
+  fab.onclick = () => switchTab('order');
+  document.body.appendChild(fab);
+})();
+
+// Load menu
+async function loadMenu() {
+  try {
+    menuItems = await apiFetch('/menu');
+    const cats = [...new Set(menuItems.map(i => i.category).filter(Boolean))].sort();
+    const tabsEl = document.getElementById('category-tabs');
+    cats.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'cat-tab'; btn.dataset.cat = c; btn.textContent = c;
+      btn.addEventListener('click', () => { activeCategory = c; document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); renderMenuGrid(); });
+      tabsEl.appendChild(btn);
+    });
+    tabsEl.querySelector('[data-cat=""]').addEventListener('click', () => { activeCategory = ''; document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active')); tabsEl.querySelector('[data-cat=""]').classList.add('active'); renderMenuGrid(); });
+    renderMenuGrid();
+  } catch(e) { showToast('Failed to load menu: ' + e.message, 'error'); }
+}
+
+function renderMenuGrid(search='') {
+  const grid = document.getElementById('menu-grid');
+  let filtered = menuItems;
+  if (activeCategory) filtered = filtered.filter(i => i.category === activeCategory);
+  if (search) filtered = filtered.filter(i => i.item_name.toLowerCase().includes(search.toLowerCase()) || i.item_code.toLowerCase().includes(search.toLowerCase()));
+  if (!filtered.length) { grid.innerHTML = '<div style="grid-column:span 2;padding:30px;text-align:center;color:var(--text-muted)">No items found</div>'; return; }
+  grid.innerHTML = filtered.map(item => `
+    <div class="menu-item-card" onclick="addItem(${item.id})">
+      <div class="item-cat">${item.category}</div>
+      <div class="item-name">${item.item_name}</div>
+      <div class="item-code">${item.item_code}</div>
+      <div class="item-price">${formatCurrency(item.default_price)}</div>
+    </div>`).join('');
+}
+
+document.getElementById('menu-search').addEventListener('input', e => renderMenuGrid(e.target.value));
+
+function addItem(id) {
+  const item = menuItems.find(i => i.id === id);
+  if (!item) return;
+  const existing = billItems.find(b => b.item_code === item.item_code && !b.is_manual);
+  if (existing) { existing.quantity++; existing.line_total = existing.quantity * existing.unit_price; }
+  else { billItems.push({ item_code: item.item_code, item_name: item.item_name, quantity: 1, unit_price: parseFloat(item.default_price), line_total: parseFloat(item.default_price), is_manual: false }); }
+  renderBill();
+}
+
+document.getElementById('manual-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = document.getElementById('manual-name').value.trim();
+  const price = parseFloat(document.getElementById('manual-price').value);
+  const qty = parseInt(document.getElementById('manual-qty').value) || 1;
+  if (!name) { showToast('Enter item name', 'warning'); return; }
+  if (isNaN(price) || price < 0) { showToast('Enter a valid price', 'warning'); return; }
+  billItems.push({ item_code: 'MANUAL', item_name: name, quantity: qty, unit_price: price, line_total: parseFloat((price * qty).toFixed(2)), is_manual: true });
+  document.getElementById('manual-name').value = '';
+  document.getElementById('manual-price').value = '';
+  document.getElementById('manual-qty').value = 1;
+  showToast(`"${name}" added`, 'success');
+  renderBill();
+  // Auto-switch to order tab on mobile
+  if (window.innerWidth <= 768) switchTab('order');
+});
+
+function renderBill() {
+  const list = document.getElementById('bill-items-list');
+  if (!billItems.length) {
+    list.innerHTML = '<div class="empty-bill"><div class="big-icon">🧾</div><p>Tap items from the menu to add</p></div>';
+    updateTotals(); return;
+  }
+  list.innerHTML = billItems.map((item, i) => `
+    <div class="cart-item">
+      <div class="cart-item-top">
+        <div class="cart-item-info">
+          <div class="cart-item-name">${item.item_name}</div>
+          <div class="cart-item-code">${item.item_code || 'Manual entry'}</div>
+        </div>
+        <div class="cart-item-total">${formatCurrency(item.line_total)}</div>
+      </div>
+      <div class="cart-item-bottom">
+        <div class="cart-qty-ctrl">
+          <button class="cart-qty-btn" onclick="changeQty(${i},-1)">−</button>
+          <span class="cart-qty-val">${item.quantity}</span>
+          <button class="cart-qty-btn" onclick="changeQty(${i},1)">+</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span class="cart-price-label">₹</span>
+          <input type="number" class="cart-price-input" value="${item.unit_price.toFixed(2)}" min="0" step="0.01" onchange="changePrice(${i},this.value)" title="Unit price">
+        </div>
+        <span class="cart-unit-price">× ${item.quantity} = ${formatCurrency(item.line_total)}</span>
+        <button class="cart-remove-btn" onclick="removeItem(${i})" title="Remove">✕</button>
+      </div>
+    </div>`).join('');
+  updateTotals();
+}
+
+function changeQty(i, delta) {
+  billItems[i].quantity = Math.max(1, billItems[i].quantity + delta);
+  billItems[i].line_total = billItems[i].quantity * billItems[i].unit_price;
+  renderBill();
+}
+
+function changePrice(i, val) {
+  billItems[i].unit_price = parseFloat(val) || 0;
+  billItems[i].line_total = billItems[i].quantity * billItems[i].unit_price;
+  renderBill();
+}
+
+function removeItem(i) { billItems.splice(i, 1); renderBill(); }
+
+function updateTotals() {
+  const subtotal = billItems.reduce((s, i) => s + i.line_total, 0);
+  const delivery = deliveryEnabled ? deliveryCharge : 0;
+  let discountAmt = 0;
+  if (discountEnabled) {
+    const type = document.getElementById('discount-type').value;
+    const val = parseFloat(document.getElementById('discount-val').value) || 0;
+    discountAmt = type === 'percentage' ? (subtotal + delivery) * val / 100 : val;
+  }
+  const grand = Math.max(0, subtotal + delivery - discountAmt);
+  document.getElementById('t-subtotal').textContent = formatCurrency(subtotal);
+  document.getElementById('t-delivery').textContent = formatCurrency(delivery);
+  document.getElementById('t-discount').textContent = '-' + formatCurrency(discountAmt);
+  document.getElementById('t-grand').textContent = formatCurrency(grand);
+  document.getElementById('delivery-row').style.display = deliveryEnabled ? '' : 'none';
+  document.getElementById('discount-row').style.display = discountEnabled ? '' : 'none';
+  // Mobile FAB + tab badge
+  const isMenu = document.getElementById('panel-menu').classList.contains('active');
+  const n = billItems.reduce((s,i) => s+i.quantity, 0);
+  const fab = document.getElementById('cart-fab');
+  const tabCount = document.getElementById('tab-count');
+  const fabCount = document.getElementById('fab-count');
+  if (fab) { 
+    fab.classList.toggle('has-items', n > 0 && isMenu); 
+    if (fabCount) fabCount.textContent = n > 0 ? `${n} · ${formatCurrency(grand)}` : ''; 
+  }
+  if (tabCount) tabCount.textContent = n > 0 ? `(${n})` : '';
+}
+
+// Delivery toggle
+document.getElementById('delivery-toggle').addEventListener('change', e => {
+  deliveryEnabled = e.target.checked;
+  document.getElementById('delivery-opts').style.display = deliveryEnabled ? 'flex' : 'none';
+  updateTotals();
+});
+document.querySelectorAll('.del-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.del-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    deliveryCharge = parseFloat(btn.dataset.val);
+    document.getElementById('custom-delivery').value = '';
+    updateTotals();
+  });
+});
+document.getElementById('custom-delivery').addEventListener('input', e => {
+  document.querySelectorAll('.del-btn').forEach(b => b.classList.remove('active'));
+  deliveryCharge = parseFloat(e.target.value) || 0;
+  updateTotals();
+});
+
+// Discount toggle
+document.getElementById('discount-toggle').addEventListener('change', e => {
+  discountEnabled = e.target.checked;
+  document.getElementById('discount-opts').style.display = discountEnabled ? 'flex' : 'none';
+  updateTotals();
+});
+document.getElementById('discount-type').addEventListener('change', updateTotals);
+document.getElementById('discount-val').addEventListener('input', updateTotals);
+
+function clearBill() {
+  if (billItems.length && !confirm('Clear current bill?')) return;
+  billItems = [];
+  deliveryEnabled = false; discountEnabled = false; deliveryCharge = 0;
+  document.getElementById('delivery-toggle').checked = false;
+  document.getElementById('discount-toggle').checked = false;
+  document.getElementById('delivery-opts').style.display = 'none';
+  document.getElementById('discount-opts').style.display = 'none';
+  document.getElementById('customer-phone').value = '';
+  document.getElementById('token-display').textContent = '—';
+  window.reservedToken = null; // Clear any reserved token
+  // Reset order type pills to Dine-in
+  document.querySelectorAll('.ot-pill').forEach(p => p.classList.remove('active'));
+  const dinein = document.querySelector('.ot-pill[data-type="Dine-in"]');
+  if (dinein) { dinein.classList.add('active'); document.getElementById('order-type').value = 'Dine-in'; }
+  document.getElementById('order-table').value = '';
+  document.getElementById('order-location').value = '';
+  document.getElementById('order-table').style.display = 'block';
+  document.getElementById('order-location').style.display = 'none';
+  renderBill();
+}
+
+// ── Hold Bill ──
+async function holdBill() {
+  if (!billItems.length) { showToast('No items to hold.', 'warning'); return; }
+  
+  // Reserve token
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳';
+  let reservedToken = null;
+  try {
+    const res = await apiFetch('/billing/next-token');
+    reservedToken = res.token_number;
+  } catch(e) {
+    showToast('Failed to reserve token', 'error');
+    btn.disabled = false; btn.textContent = '⏸ Hold';
+    return;
+  }
+
+  const drafts = JSON.parse(localStorage.getItem('ff_draft_bills') || '[]');
+  const phone = document.getElementById('customer-phone').value.trim();
+  const table = document.getElementById('order-table').value.trim();
+  let draftName = `Token #${reservedToken}`;
+  if (phone) draftName += ` | Ph: ${phone}`;
+  else if (table) draftName += ` | Tb: ${table}`;
+
+  drafts.push({
+    id: Date.now(),
+    name: draftName,
+    token_number: reservedToken,
+    items: billItems,
+    customer_phone: phone,
+    order_type: document.getElementById('order-type').value,
+    table: table,
+    location: document.getElementById('order-location').value,
+    delivery: deliveryEnabled, discount: discountEnabled,
+    date: new Date().toLocaleString()
+  });
+  localStorage.setItem('ff_draft_bills', JSON.stringify(drafts));
+  showToast(`Held mapped to Token #${reservedToken}`, 'success');
+  
+  // Hacky way to let user restore drafts
+  if (!document.getElementById('drafts-btn')) {
+    const dBtn = document.createElement('button');
+    dBtn.id = 'drafts-btn'; dBtn.className = 'btn btn-secondary btn-sm';
+    dBtn.textContent = '📥 Drafts';
+    dBtn.onclick = showDrafts;
+    document.querySelector('.topbar-left').appendChild(dBtn);
+  }
+  billItems = []; // clear current
+  clearBill();
+  btn.disabled = false; btn.textContent = '⏸ Hold';
+}
+
+function showDrafts() {
+  const drafts = JSON.parse(localStorage.getItem('ff_draft_bills') || '[]');
+  if (!drafts.length) { showToast('No held bills', 'info'); return; }
+  const pick = confirm(`You have ${drafts.length} held bill(s).\nRestore the most recent one? (${drafts[drafts.length-1].name})`);
+  if (pick) {
+    const d = drafts.pop();
+    localStorage.setItem('ff_draft_bills', JSON.stringify(drafts));
+    billItems = d.items;
+    document.getElementById('customer-phone').value = d.customer_phone || '';
+    document.getElementById('order-table').value = d.table || '';
+    document.getElementById('order-location').value = d.location || '';
+    const typePill = document.querySelector(`.ot-pill[data-type="${d.order_type}"]`);
+    if (typePill) typePill.click(); // This simulates the click to restore table/loc inputs
+    // Set token for saving
+    window.reservedToken = d.token_number;
+    document.getElementById('token-display').textContent = '#' + d.token_number;
+    renderBill();
+    showToast('Draft restored', 'success');
+  }
+}
+
+// ── Touch Numpad Logic ──
+function toggleNumpad() {
+  const np = document.getElementById('touch-numpad');
+  np.style.display = np.style.display === 'none' ? 'block' : 'none';
+}
+function npType(val) {
+  const searchInput = document.getElementById('menu-search');
+  if (val === 'C') searchInput.value = '';
+  else searchInput.value += val;
+  // Trigger search
+  const e = new Event('input');
+  searchInput.dispatchEvent(e);
+}
+function npAdd() {
+  const searchInput = document.getElementById('menu-search');
+  const code = searchInput.value.trim().toLowerCase();
+  if (!code) return;
+  const item = menuItems.find(m => String(m.item_code).toLowerCase() === code);
+  if (item) {
+    addItemToBill(item);
+    searchInput.value = '';
+    const e = new Event('input'); searchInput.dispatchEvent(e);
+    showToast(`Added ${item.item_name}`, 'success');
+  } else {
+    showToast('Code not found', 'error');
+  }
+}
+
+function closePreviewModal() {
+  document.getElementById('preview-modal').classList.remove('open');
+}
+
+function showPrintPreview() {
+  if (!billItems.length) { showToast('Add items before saving.', 'warning'); return; }
+  
+  const subtotal = billItems.reduce((s, i) => s + i.line_total, 0);
+  const delivery = deliveryEnabled ? deliveryCharge : 0;
+  const discType = document.getElementById('discount-type').value;
+  const discVal = parseFloat(document.getElementById('discount-val').value) || 0;
+  const discAmt = discountEnabled ? (discType === 'percentage' ? (subtotal + delivery) * discVal / 100 : discVal) : 0;
+  const grand = Math.max(0, subtotal + delivery - discAmt);
+  const date = new Date().toLocaleString('en-IN');
+  
+  const pad = (str, len) => String(str).padEnd(len).slice(0, len);
+  const padLeft = (str, len) => String(str).padStart(len).slice(-len);
+  
+  const orderType = document.getElementById('order-type').value;
+  let orderMetaInfo = '';
+  if (orderType === 'Dine-in') {
+    const table = document.getElementById('order-table').value.trim();
+    if (table) orderMetaInfo = 'Table: ' + table;
+  } else if (orderType === 'Delivery') {
+    let loc = document.getElementById('order-location').value;
+    if (loc === 'Other') loc = document.getElementById('order-location-other').value.trim();
+    if (loc) orderMetaInfo = 'Location: ' + loc;
+  }
+  
+  let receipt = '             Fire & Flavour\n';
+  receipt += '      ------------------------------------------------\n';
+  receipt += '      CUSTOMER RECEIPT (PREVIEW)\n';
+  receipt += '      Date    : ' + date + '\n';
+  receipt += '      Type    : ' + orderType + (orderMetaInfo ? ' (' + orderMetaInfo + ')' : '') + '\n';
+  receipt += '      ------------------------------------------------\n';
+  receipt += '      ' + pad('ITEM', 24) + padLeft('QTY', 4) + padLeft('PRICE', 9) + padLeft('AMT', 11) + '\n';
+  receipt += '      ------------------------------------------------\n';
+  
+  for (const item of billItems) {
+    receipt += '      ' + pad(item.item_name, 24) + padLeft(item.quantity, 4) + padLeft(item.unit_price.toFixed(2), 9) + padLeft(item.line_total.toFixed(2), 11) + '\n';
+  }
+  
+  receipt += '      ------------------------------------------------\n';
+  receipt += '      ' + pad('Subtotal', 36) + padLeft(subtotal.toFixed(2), 12) + '\n';
+  if (deliveryEnabled) receipt += '      ' + pad('Delivery', 36) + padLeft(delivery.toFixed(2), 12) + '\n';
+  if (discountEnabled) receipt += '      ' + pad('Discount', 36) + padLeft('-' + discAmt.toFixed(2), 12) + '\n';
+  receipt += '      ------------------------------------------------\n';
+  receipt += '      ' + pad('GRAND TOTAL', 36) + padLeft(grand.toFixed(2), 12) + '\n';
+  receipt += '      ------------------------------------------------\n';
+  receipt += '             Thank you! Visit again.\n';
+  
+  document.getElementById('preview-content').textContent = receipt;
+  document.getElementById('preview-modal').classList.add('open');
+}
+
+async function confirmSaveAndPrint() {
+  closePreviewModal();
+  await saveBill(true);
+}
+
+async function saveBill(print=true) {
+  if (!billItems.length) { showToast('Add items before saving.', 'warning'); return; }
+  const btn = document.getElementById('print-btn');
+  btn.disabled = true; btn.textContent = '⏳ Processing…';
+  try {
+    const subtotal = billItems.reduce((s, i) => s + i.line_total, 0);
+    const delivery = deliveryEnabled ? deliveryCharge : 0;
+    const discType = document.getElementById('discount-type').value;
+    const discVal = parseFloat(document.getElementById('discount-val').value) || 0;
+    const discAmt = discountEnabled ? (discType === 'percentage' ? (subtotal + delivery) * discVal / 100 : discVal) : 0;
+    const grand = Math.max(0, subtotal + delivery - discAmt);
+
+    const orderType = document.getElementById('order-type').value;
+    let orderMetaInfo = '';
+    if (orderType === 'Dine-in') {
+      const table = document.getElementById('order-table').value.trim();
+      if (table) orderMetaInfo = 'Table: ' + table;
+    } else if (orderType === 'Delivery') {
+      let loc = document.getElementById('order-location').value;
+      if (loc === 'Other') loc = document.getElementById('order-location-other').value.trim();
+      if (loc) orderMetaInfo = 'Location: ' + loc;
+    }
+
+    const payload = {
+      items: billItems,
+      customer_phone: document.getElementById('customer-phone').value.trim() || null,
+      order_type: orderType + (orderMetaInfo ? ' | ' + orderMetaInfo : ''),
+      subtotal, delivery_enabled: deliveryEnabled, delivery_charge: delivery,
+      discount_enabled: discountEnabled, discount_type: discType, discount_value: discVal, discount_amount: discAmt,
+      grand_total: grand
+    };
+    if (window.reservedToken) {
+      payload.token_number = window.reservedToken;
+    }
+
+    const res = await apiFetch('/billing', { method: 'POST', body: JSON.stringify(payload) });
+    currentBillId = res.bill_id;
+    window.reservedToken = null; // Clear it after use
+    document.getElementById('success-token').textContent = '#' + res.token_number;
+    document.getElementById('success-billno').textContent = res.bill_number;
+    document.getElementById('success-total').textContent = formatCurrency(grand);
+    
+    // Cloud Mobile Printing via RawBT Bridge
+    if (res.receipt_b64 || res.kot_b64) {
+       // Combine receipt and KOT if both exist (for single printer setups)
+       let combinedB64 = res.receipt_b64 || res.kot_b64;
+       if (res.receipt_b64 && res.kot_b64) {
+          // If we need both, we combine them. Easiest way in JS without binary buffer manipulation is to just send the receipt for now, or rely on backend to combine them.
+          // For now, let's prioritize Receipt. If they want both, we should combine them in backend.
+       }
+       // Only trigger RawBT if we are on a mobile device (Android)
+       if (/android/i.test(navigator.userAgent)) {
+          window.location.href = `intent:base64,${combinedB64}#Intent;scheme=rawbt;type=application/vnd.epson.escpos;package=ru.a402d.rawbtprinter;end;`;
+       }
+    }
+    const pr = res.print_results || [];
+    const statusEl = document.getElementById('print-status');
+    if (!pr.length) {
+      statusEl.innerHTML = `<div style="background:#2a2a00;border:1px solid #ffcc00;border-radius:8px;padding:8px 12px;font-size:12px;color:#ffcc00">⚠️ Auto-print not configured. Use Reprint buttons below.</div>`;
+    } else {
+      statusEl.innerHTML = pr.map(p => {
+        if (p.success) return `<div style="background:#0a2a0a;border:1px solid var(--success);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--success);margin-bottom:4px">✅ ${p.type.toUpperCase()} printed successfully</div>`;
+        if (p.skipped) return `<div style="background:#2a2a00;border:1px solid #ffcc00;border-radius:8px;padding:8px 12px;font-size:12px;color:#ffcc00;margin-bottom:4px">⚠️ ${p.type.toUpperCase()}: ${p.reason || 'Printer not configured'}</div>`;
+        return `<div style="background:#2a0a0a;border:1px solid var(--danger);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--danger);margin-bottom:4px">❌ ${p.type.toUpperCase()} failed: ${p.error || 'Unknown error'}</div>`;
+      }).join('');
+    }
+    document.getElementById('success-modal').classList.add('open');
+    document.getElementById('token-display').textContent = '#' + res.token_number;
+    billItems = [];
+    document.getElementById('customer-phone').value = '';
+    renderBill();
+  } catch(e) { showToast(e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = '🖨 Save & Print'; }
+}
+
+async function saveBillOnly() { await saveBill(false); }
+
+function closeSuccessModal() {
+  document.getElementById('success-modal').classList.remove('open');
+  document.getElementById('token-display').textContent = '—';
+}
+
+async function reprintDocument(type) {
+  if (!currentBillId) return;
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ Printing…';
+  try {
+    const res = await apiFetch(`/billing/${currentBillId}/reprint`, {
+      method: 'POST',
+      body: JSON.stringify({ type })
+    });
+    const pr = res.print_results || [];
+    if (!pr.length) {
+      showToast('⚠️ No printer configured in Settings', 'warning');
+    } else {
+      const failed = pr.filter(p => !p.success && !p.skipped);
+      const skipped = pr.filter(p => p.skipped);
+      const ok = pr.filter(p => p.success);
+      if (ok.length) showToast(`✅ ${ok.map(p => p.type.toUpperCase()).join(' & ')} printed successfully`, 'success');
+      if (skipped.length) showToast(`⚠️ ${skipped.map(p => p.type.toUpperCase()).join(' & ')}: Printer IP not set in Settings`, 'warning');
+      if (failed.length) showToast(`❌ ${failed.map(p => p.type.toUpperCase() + ': ' + (p.error || 'connection error')).join(' | ')}`, 'error');
+    }
+  } catch (e) {
+    showToast('❌ Print error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = type === 'kot' ? '🖨 Reprint KOT' : '🖨 Reprint Receipt';
+  }
+}
+
+loadMenu();
+</script>
+</body>
+</html>

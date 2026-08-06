@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — Fire & Flavour</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .settings-section { margin-bottom: 20px; }
+  .settings-section h3 { font-size: 13px; font-weight: 700; color: var(--flame-light); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .toggle-row-label { font-size: 13px; }
+  .toggle-row-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .printer-test { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main-content">
+    <div class="page-header">
+      <div><h2>⚙️ Settings</h2><p>Restaurant info, printer config, and system preferences</p></div>
+      <button class="btn btn-primary" id="save-btn" onclick="saveSettings()">💾 Save Settings</button>
+    </div>
+    <div class="page-body">
+      <div class="grid-2">
+        <!-- Restaurant Info -->
+        <div class="card settings-section">
+          <h3>🏪 Restaurant Information</h3>
+          <div class="form-group">
+            <label class="form-label">Restaurant Name</label>
+            <input type="text" class="form-control" id="s-name" placeholder="Fire & Flavour">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Address</label>
+            <textarea class="form-control" id="s-address" rows="2" placeholder="Full address"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="text" class="form-control" id="s-phone" placeholder="+91 98765 43210">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Receipt Footer Message</label>
+            <input type="text" class="form-control" id="s-footer" placeholder="Thank you for dining with us!">
+          </div>
+        </div>
+
+        <!-- Token & Print Settings -->
+        <div>
+          <div class="card settings-section" style="margin-bottom:16px">
+            <h3>🎫 Token Number Settings</h3>
+            <div class="form-group">
+              <label class="form-label">Token Reset</label>
+              <select class="form-control" id="s-token-format">
+                <option value="daily">Reset daily (1, 2, 3… each day)</option>
+                <option value="continuous">Continuous (never reset)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card settings-section">
+            <h3>🖨️ Auto-Print Settings</h3>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-row-label">Auto-print Customer Receipt</div>
+                <div class="toggle-row-desc">Automatically print receipt after saving bill</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="s-auto-receipt"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <div class="toggle-row-label">Auto-print Kitchen Order Ticket</div>
+                <div class="toggle-row-desc">Automatically print KOT after saving bill</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="s-auto-kot"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Printer Configuration -->
+      <div class="card settings-section">
+        <h3>🖨️ Printer Configuration (TVS RP3230 — 80mm Thermal)</h3>
+        <div class="grid-2">
+          <div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Customer Receipt Printer</p>
+            <div class="form-group">
+              <label class="form-label">Printer IP Address</label>
+              <input type="text" class="form-control" id="s-cust-ip" placeholder="192.168.1.100">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Printer Port</label>
+              <input type="number" class="form-control" id="s-cust-port" placeholder="9100">
+            </div>
+          </div>
+          <div>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Kitchen Order Ticket Printer</p>
+            <div class="form-group">
+              <label class="form-label">Printer IP Address</label>
+              <input type="text" class="form-control" id="s-kit-ip" placeholder="192.168.1.101">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Printer Port</label>
+              <input type="number" class="form-control" id="s-kit-port" placeholder="9100">
+            </div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:8px;padding:10px;background:var(--surface2);border-radius:8px">
+          ℹ️ <strong>Setup:</strong> Connect TVS RP3230 via Wi-Fi or USB-to-Network adapter. Configure the printer's IP in the same network subnet. Port 9100 is the standard RAW print port.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+if (!authGuard()) throw 0;
+initSidebar('settings');
+
+async function loadSettings() {
+  try {
+    const s = await apiFetch('/settings');
+    document.getElementById('s-name').value = s.restaurant_name || '';
+    document.getElementById('s-address').value = s.address || '';
+    document.getElementById('s-phone').value = s.phone || '';
+    document.getElementById('s-footer').value = s.footer || '';
+    document.getElementById('s-token-format').value = s.token_format || 'daily';
+    document.getElementById('s-auto-receipt').checked = s.auto_print_receipt === '1';
+    document.getElementById('s-auto-kot').checked = s.auto_print_kot === '1';
+    document.getElementById('s-cust-ip').value = s.customer_printer_ip || '';
+    document.getElementById('s-cust-port').value = s.customer_printer_port || '9100';
+    document.getElementById('s-kit-ip').value = s.kitchen_printer_ip || '';
+    document.getElementById('s-kit-port').value = s.kitchen_printer_port || '9100';
+  } catch(e) { showToast('Failed to load settings: ' + e.message, 'error'); }
+}
+
+async function saveSettings() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '⏳ Saving…';
+  try {
+    await apiFetch('/settings', {
+      method: 'POST',
+      body: JSON.stringify({
+        restaurant_name: document.getElementById('s-name').value,
+        address: document.getElementById('s-address').value,
+        phone: document.getElementById('s-phone').value,
+        footer: document.getElementById('s-footer').value,
+        token_format: document.getElementById('s-token-format').value,
+        auto_print_receipt: document.getElementById('s-auto-receipt').checked ? '1' : '0',
+        auto_print_kot: document.getElementById('s-auto-kot').checked ? '1' : '0',
+        customer_printer_ip: document.getElementById('s-cust-ip').value,
+        customer_printer_port: document.getElementById('s-cust-port').value,
+        kitchen_printer_ip: document.getElementById('s-kit-ip').value,
+        kitchen_printer_port: document.getElementById('s-kit-port').value,
+      })
+    });
+    showToast('Settings saved!', 'success');
+  } catch(e) { showToast(e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '💾 Save Settings'; }
+}
+
+loadSettings();
+</script>
+</body>
+</html>

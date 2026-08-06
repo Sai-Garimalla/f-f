@@ -1,0 +1,51 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const { initDB } = require('./db/connection');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Serve static client files
+app.use(express.static(path.join(__dirname, '../client')));
+
+// API Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/menu', require('./routes/menu'));
+app.use('/api/billing', require('./routes/billing'));
+app.use('/api/bills', require('./routes/bills'));
+app.use('/api/settings', require('./routes/settings'));
+
+// SPA fallback — serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, '../client/index.html'));
+  }
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+async function start() {
+  try {
+    await initDB();
+    app.listen(PORT, () => {
+      console.log(`🔥 Fire & Flavour server running on http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error('❌ Failed to start server:', err.message);
+    process.exit(1);
+  }
+}
+
+start();

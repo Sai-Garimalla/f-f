@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const net = require('net');
+const mqtt = require('mqtt');
 const { pool } = require('../db/connection');
 const { authenticateToken } = require('../middleware/auth');
-
 router.use(authenticateToken);
 
 // Generate next token number
@@ -56,27 +56,35 @@ function generateBillNumber() {
   return `FF-${dateStr}-${timeStr}`;
 }
 
-// ESC/POS printer function
+// Connect to HiveMQ Cloud
+let mqttClient = null;
+if (process.env.MQTT_HOST) {
+  mqttClient = mqtt.connect(\`mqtts://\${process.env.MQTT_HOST}\`, {
+    username: process.env.MQTT_USER,
+    password: process.env.MQTT_PASS
+  });
+  mqttClient.on('connect', () => console.log('✅ Connected to HiveMQ Print Cloud'));
+  mqttClient.on('error', (err) => console.error('❌ HiveMQ Error:', err));
+}
+
+// ESC/POS printer function (MQTT IoT Bridge)
 function printToPrinter(ip, port, data) {
   return new Promise((resolve, reject) => {
-    if (!ip || !port) return resolve({ skipped: true, reason: 'No printer configured' });
-    const client = new net.Socket();
-    const timeout = setTimeout(() => {
-      client.destroy();
-      reject(new Error('Printer connection timeout'));
-    }, 5000);
+    if (!ip) return resolve({ skipped: true, reason: 'No printer IP configured' });
+    
+    // If MQTT is not configured or connected, fall back or skip
+    if (!mqttClient || !mqttClient.connected) {
+       console.log('⚠️ MQTT not connected, skipping print job to ' + ip);
+       return resolve({ skipped: true, reason: 'MQTT disconnected' });
+    }
 
-    client.connect(parseInt(port), ip, () => {
-      client.write(data, () => {
-        clearTimeout(timeout);
-        client.destroy();
-        resolve({ success: true });
-      });
-    });
-
-    client.on('error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
+    // The topic routes to the specific local IP
+    const topic = \`restaurant/printer/\${ip}\`;
+    
+    // Publish raw binary data (ESC/POS Buffer) to MQTT
+    mqttClient.publish(topic, data, { qos: 1 }, (err) => {
+      if (err) return reject(err);
+      resolve({ success: true, method: 'MQTT' });
     });
   });
 }

@@ -218,6 +218,18 @@ async function viewBill(billId) {
     document.getElementById('reprint-receipt-btn').onclick = () => reprint(billId, 'receipt');
     document.getElementById('reprint-kot-btn').onclick = () => reprint(billId, 'kot');
     document.getElementById('reprint-both-btn').onclick = () => reprint(billId, 'both');
+    
+    // Add Edit button
+    let editBtn = document.getElementById('edit-bill-btn');
+    if (!editBtn) {
+      editBtn = document.createElement('button');
+      editBtn.id = 'edit-bill-btn';
+      editBtn.className = 'btn btn-secondary';
+      editBtn.innerHTML = '✏️ Edit Bill';
+      document.querySelector('.modal-actions').prepend(editBtn);
+    }
+    editBtn.onclick = () => window.location.href = `/billing.html?edit_bill=${billId}`;
+
   } catch(e) {
     content.innerHTML = `<p style="color:var(--danger)">${e.message}</p>`;
   }

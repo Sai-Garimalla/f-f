@@ -649,6 +649,78 @@ function clearBill() {
   renderBill();
 }
 
+async function saveDraft() {
+  if (!billItems.length) { showToast('Add items before holding.', 'warning'); return; }
+  const btn = document.getElementById('hold-btn');
+  btn.disabled = true; btn.textContent = '⏸...';
+  try {
+    await saveBill(false, 'draft');
+  } catch(e) {
+    showToast('Error saving draft: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '⏸ Hold';
+  }
+}
+
+async function showDrafts() {
+  try {
+    const data = await apiFetch('/bills?status=draft&limit=50');
+    const drafts = data.bills;
+    if (!drafts || drafts.length === 0) { showToast('No held bills', 'info'); return; }
+    
+    let modal = document.getElementById('drafts-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'drafts-modal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal" style="max-height:80vh;display:flex;flex-direction:column;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h3 style="margin:0;font-size:16px;">Held Orders (Drafts)</h3>
+            <button class="btn btn-secondary btn-sm" onclick="this.closest('.modal-overlay').classList.remove('open')">✕</button>
+          </div>
+          <div id="drafts-list" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    
+    const list = document.getElementById('drafts-list');
+    list.innerHTML = drafts.map(d => `
+      <div style="background:var(--surface2); border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border);">
+        <div>
+          <div style="font-weight:bold;color:var(--flame-light);">Token #${d.token_number}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${d.customer_phone || 'Walk-in'} | ${d.order_type || 'Dine-in'}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${formatDateTime(d.created_at)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:bold;">${formatCurrency(d.grand_total)}</div>
+          <div style="margin-top:4px;">
+            <button class="btn btn-secondary btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteDraft(${d.bill_id}, this)">Discard</button>
+            <button class="btn btn-primary btn-sm" onclick="loadEditBill(${d.bill_id}); document.getElementById('drafts-modal').classList.remove('open');">Restore</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    
+    modal.classList.add('open');
+  } catch(e) {
+    showToast('Error loading drafts: ' + e.message, 'error');
+  }
+}
+
+async function deleteDraft(billId, btnEl) {
+  if (!confirm('Discard this draft permanently?')) return;
+  try {
+    await apiFetch(`/bills/${billId}/cancel`, { method: 'POST' });
+    showToast('Draft discarded', 'success');
+    btnEl.closest('.modal').parentElement.classList.remove('open');
+    showDrafts(); // reload list
+  } catch(e) {
+    showToast('Error discarding draft: ' + e.message, 'error');
+  }
+}
+
 // ── Hold Bill ──
 async function holdBill() {
   if (!billItems.length) { showToast('No items to hold.', 'warning'); return; }
@@ -701,26 +773,7 @@ async function holdBill() {
   btn.disabled = false; btn.textContent = '⏸ Hold';
 }
 
-function showDrafts() {
-  const drafts = JSON.parse(localStorage.getItem('ff_draft_bills') || '[]');
-  if (!drafts.length) { showToast('No held bills', 'info'); return; }
-  const pick = confirm(`You have ${drafts.length} held bill(s).\nRestore the most recent one? (${drafts[drafts.length-1].name})`);
-  if (pick) {
-    const d = drafts.pop();
-    localStorage.setItem('ff_draft_bills', JSON.stringify(drafts));
-    billItems = d.items;
-    document.getElementById('customer-phone').value = d.customer_phone || '';
-    document.getElementById('order-table').value = d.table || '';
-    document.getElementById('order-location').value = d.location || '';
-    const typePill = document.querySelector(`.ot-pill[data-type="${d.order_type}"]`);
-    if (typePill) typePill.click(); // This simulates the click to restore table/loc inputs
-    // Set token for saving
-    window.reservedToken = d.token_number;
-    document.getElementById('token-display').textContent = '#' + d.token_number;
-    renderBill();
-    showToast('Draft restored', 'success');
-  }
-}
+
 
 // ── Touch Numpad Logic ──
 function toggleNumpad() {
@@ -953,7 +1006,7 @@ async function confirmPrint(printType) {
 // Keep old function as alias for backwards compat
 async function confirmSaveAndPrint() { await confirmPrint('all'); }
 
-async function saveBill(print=true) {
+async function saveBill(print=true, status='completed') {
   if (!billItems.length) { showToast('Add items before saving.', 'warning'); return; }
   
   // Phone is mandatory for Takeaway & Delivery
@@ -995,16 +1048,44 @@ async function saveBill(print=true) {
       subtotal, delivery_enabled: deliveryEnabled, delivery_charge: delivery,
       discount_enabled: discountEnabled, discount_type: discType, discount_value: discVal, discount_amount: discAmt,
       grand_total: grand,
+      status: status,
       print_intent: print
     };
     if (window.reservedToken) payload.token_number = window.reservedToken;
 
-    const res = await apiFetch('/billing', { method: 'POST', body: JSON.stringify(payload) });
+    let res;
+    if (window.editBillId) {
+      res = await apiFetch(`/billing/${window.editBillId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      window.editBillId = null;
+      window.history.replaceState({}, '', '/billing.html'); // Clear URL param
+    } else {
+      res = await apiFetch('/billing', { method: 'POST', body: JSON.stringify(payload) });
+    }
+    
     currentBillId = res.bill_id;
     window.reservedToken = null;
     document.getElementById('success-token').textContent  = '#' + res.token_number;
     document.getElementById('success-billno').textContent = res.bill_number;
     document.getElementById('success-total').textContent  = formatCurrency(grand);
+
+    if (status === 'draft') {
+      showToast(`Draft saved as Token #${res.token_number}`, 'success');
+      document.getElementById('token-display').textContent = '#' + res.token_number;
+      billItems = [];
+      document.getElementById('customer-phone').value = '';
+      document.getElementById('customer-name').value  = '';
+      renderBill();
+      
+      // Ensure drafts button is visible
+      if (!document.getElementById('drafts-btn')) {
+        const dBtn = document.createElement('button');
+        dBtn.id = 'drafts-btn'; dBtn.className = 'btn btn-secondary btn-sm';
+        dBtn.textContent = '📥 Drafts';
+        dBtn.onclick = showDrafts;
+        document.querySelector('.topbar-left').appendChild(dBtn);
+      }
+      return;
+    }
 
     const pr = res.print_results || [];
     const statusEl = document.getElementById('print-status');
@@ -1108,6 +1189,65 @@ function showCustomerHistory() {
   }
   document.getElementById('cust-history-modal').classList.add('open');
 }
+
+async function loadEditBill(id) {
+  try {
+    const data = await apiFetch(`/bills/${id}`);
+    const bill = data.bill;
+    billItems = data.items.map(i => ({...i, line_total: parseFloat(i.line_total), unit_price: parseFloat(i.unit_price)}));
+    document.getElementById('customer-name').value = bill.customer_name || '';
+    document.getElementById('customer-phone').value = bill.customer_phone || '';
+    const parts = (bill.order_type || '').split(' | ');
+    document.getElementById('order-type').value = parts[0] || 'Dine-in';
+    updateOrderTypeFields();
+    if (parts[1]) {
+      const p2 = parts[1];
+      if (p2.startsWith('Table: ')) document.getElementById('order-table').value = p2.replace('Table: ', '');
+      if (p2.startsWith('Loc: ')) {
+        const sel = document.getElementById('order-location');
+        const opts = Array.from(sel.options).map(o=>o.value);
+        const loc = p2.replace('Loc: ', '');
+        if (opts.includes(loc)) sel.value = loc;
+        else { sel.value = 'Other'; toggleOtherLocation(); document.getElementById('order-location-other').value = loc; }
+      }
+    }
+    window.reservedToken = bill.token_number;
+    window.editBillId = id;
+    
+    deliveryEnabled = bill.delivery_enabled === 1;
+    deliveryCharge = parseFloat(bill.delivery_charge) || 0;
+    discountEnabled = bill.discount_enabled === 1;
+    document.getElementById('discount-type').value = bill.discount_type || 'fixed';
+    document.getElementById('discount-val').value = parseFloat(bill.discount_value) || 0;
+    document.getElementById('enable-delivery').checked = deliveryEnabled;
+    document.getElementById('enable-discount').checked = discountEnabled;
+    toggleDelivery(); toggleDiscount();
+    
+    renderBill();
+    showToast('Loaded bill for editing.', 'success');
+  } catch(e) { showToast('Failed to load bill: ' + e.message, 'error'); }
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('edit_bill')) {
+  loadEditBill(urlParams.get('edit_bill'));
+}
+
+async function checkDraftsOnLoad() {
+  try {
+    const data = await apiFetch('/bills?status=draft&limit=1');
+    if (data.bills && data.bills.length > 0) {
+      if (!document.getElementById('drafts-btn')) {
+        const dBtn = document.createElement('button');
+        dBtn.id = 'drafts-btn'; dBtn.className = 'btn btn-secondary btn-sm';
+        dBtn.textContent = '📥 Drafts';
+        dBtn.onclick = showDrafts;
+        document.querySelector('.topbar-left').appendChild(dBtn);
+      }
+    }
+  } catch(e) {}
+}
+checkDraftsOnLoad();
 
 loadMenu();
 </script>

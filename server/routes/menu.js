@@ -6,6 +6,21 @@ const path = require('path');
 const { pool } = require('../db/connection');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
+// Download menu as Excel template (Must be before auth middleware to allow direct browser download)
+router.get('/template', (req, res) => {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Item Code', 'Item Name', 'Category', 'Default Price'],
+    ['F001', 'Chicken Biryani', 'Rice', 220],
+    ['F002', 'Paneer Butter Masala', 'Curry', 180],
+  ]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Menu');
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+  res.setHeader('Content-Disposition', 'attachment; filename=menu_template.xlsx');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
+});
+
 router.use(authenticateToken);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -147,21 +162,6 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-
-// Download menu as Excel template
-router.get('/template', (req, res) => {
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([
-    ['Item Code', 'Item Name', 'Category', 'Default Price'],
-    ['F001', 'Chicken Biryani', 'Rice', 220],
-    ['F002', 'Paneer Butter Masala', 'Curry', 180],
-  ]);
-  XLSX.utils.book_append_sheet(wb, ws, 'Menu');
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-  res.setHeader('Content-Disposition', 'attachment; filename=menu_template.xlsx');
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.send(buf);
 });
 
 module.exports = router;

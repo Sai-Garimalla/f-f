@@ -1,5 +1,11 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(process.cwd(), '.env') });
+try {
+  const config = require('../config.json');
+  for (const key in config) {
+    if (!process.env[key]) process.env[key] = config[key];
+  }
+} catch (e) {}
 const express = require('express');
 const cors = require('cors');
 const { initDB } = require('./db/connection');

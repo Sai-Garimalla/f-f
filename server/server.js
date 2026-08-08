@@ -1,7 +1,7 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const path = require('path');
+require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const { initDB } = require('./db/connection');
 
 const app = express();

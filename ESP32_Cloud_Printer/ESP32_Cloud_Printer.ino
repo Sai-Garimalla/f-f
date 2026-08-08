@@ -9,7 +9,7 @@ const char* password = "he9sahc3wai9ouSa";
 // 2. YOUR HIVEMQ CLOUD DETAILS
 const char* mqtt_server = "59b8ba9dc83641cba7c38e8392dde628.s1.eu.hivemq.cloud";
 const int mqtt_port = 8883;
-const char* mqtt_user = "fireandflavour";
+const char* mqtt_user = "f&f";
 const char* mqtt_pass = "12345678";
 
 WiFiClientSecure secureClient;

@@ -11,6 +11,6 @@ module.exports = {
   "KITCHEN_PRINTER_IP": "192.168.29.200",
   "KITCHEN_PRINTER_PORT": "9100",
   "MQTT_HOST": "59b8ba9dc83641cba7c38e8392dde628.s1.eu.hivemq.cloud",
-  "MQTT_USER": "fireandflavour",
+  "MQTT_USER": "f&f",
   "MQTT_PASS": "12345678"
 };

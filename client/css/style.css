@@ -259,6 +259,8 @@ tbody td { padding: 10px 12px; color: var(--text); }
   .bottom-nav { display:block !important; }
   .sidebar { transform:translateX(-100%); z-index:300; transition:transform .25s ease; }
   .sidebar.open { transform:translateX(0); }
+  .sidebar-overlay { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:299; transition:.25s; }
+  .sidebar-overlay.open { display:block; }
   .main-content { margin-left:0; padding-top:54px; padding-bottom:70px; }
   .page-header { padding:10px 14px; }
   .page-header h2 { font-size:15px; }

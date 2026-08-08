@@ -105,11 +105,11 @@ async function buildCustomerReceipt(bill, items, settings) {
   r += 'Date     : ' + new Date(bill.created_at).toLocaleDateString('en-IN') + LF;
   r += 'Time     : ' + new Date(bill.created_at).toLocaleTimeString('en-IN') + LF;
   r += SLINE + LF;
-  r += 'TOKEN    : ' + DBL_HT + BOLD_ON + String(bill.token_number) + NORMAL + BOLD_OFF + LF;
-  r += 'TYPE     : ' + DBL_HT + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
+  r += 'TOKEN    : ' + BOLD_ON + String(bill.token_number) + BOLD_OFF + LF;
+  r += 'TYPE     : ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
   if (bill.customer_name)  r += 'Customer : ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
-  if (bill.customer_phone) r += 'Phone    : ' + DBL_HT + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
-  if (bill.delivery_address) r += 'Dest     : ' + DBL_HT + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
+  if (bill.customer_phone) r += 'Phone    : ' + BOLD_ON + bill.customer_phone + BOLD_OFF + LF;
+  if (bill.delivery_address) r += 'Dest     : ' + BOLD_ON + bill.delivery_address + BOLD_OFF + LF;
   r += SLINE + LF;
 
   // Items header: ITEM(24) QTY(4) PRICE(9) AMT(11) = 48
@@ -145,24 +145,24 @@ async function buildCustomerReceipt(bill, items, settings) {
 
 // ── KOT (Kitchen Order Ticket) ──
 async function buildKOT(bill, items, settings) {
-  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, DBL_HT, NORMAL, CUT, DLINE, pad, padL } = ep();
+  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, NORMAL, CUT, DLINE, pad, padL } = ep();
 
   let k = INIT + LEFT;
   k += CENTER + BOLD_ON + (settings.restaurant_name || 'Fire & Flavour') + BOLD_OFF + LF;
   k += CENTER + BOLD_ON + '*** KITCHEN ORDER ***' + BOLD_OFF + LF;
   k += CENTER + DLINE + LF;
   k += CENTER + 'TOKEN' + LF;
-  k += CENTER + DBL_HT + BOLD_ON + String(bill.token_number) + BOLD_OFF + NORMAL + LF;
+  k += CENTER + BOLD_ON + String(bill.token_number) + BOLD_OFF + LF;
   k += LEFT + DLINE + LF;
 
   const dateStr = 'Date: ' + new Date(bill.created_at).toLocaleDateString('en-IN');
   const timeStr = 'Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN');
   k += dateStr.padEnd(24).slice(0, 24) + timeStr.padEnd(24).slice(0, 24) + LF;
   k += 'Bill     : ' + bill.bill_number + LF;
-  k += 'Type     : ' + DBL_HT + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
+  k += 'Type     : ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
   if (bill.customer_name)  k += 'Name     : ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
-  if (bill.customer_phone) k += 'Phone    : ' + DBL_HT + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
-  if (bill.delivery_address) k += 'Dest     : ' + DBL_HT + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
+  if (bill.customer_phone) k += 'Phone    : ' + BOLD_ON + bill.customer_phone + BOLD_OFF + LF;
+  if (bill.delivery_address) k += 'Dest     : ' + BOLD_ON + bill.delivery_address + BOLD_OFF + LF;
   if (bill.cashier_name) k += 'Taken By : ' + bill.cashier_name + LF;
   k += DLINE + LF;
   // Header: ITEM(41) QTY(7) = 48
@@ -179,7 +179,7 @@ async function buildKOT(bill, items, settings) {
 
 // ── Counter Checklist (full details + checkboxes) ──
 async function buildCounterChecklist(bill, items, settings) {
-  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, DBL_HT, NORMAL, CUT, DLINE, SLINE, pad, padL } = ep();
+  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, NORMAL, CUT, DLINE, SLINE, pad, padL } = ep();
 
   let c = INIT + LEFT;
   c += CENTER + BOLD_ON + (settings.restaurant_name || 'Fire & Flavour') + BOLD_OFF + LF;
@@ -194,11 +194,11 @@ async function buildCounterChecklist(bill, items, settings) {
   const timeStr = 'Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN');
   c += dateStr.padEnd(24).slice(0, 24) + timeStr.padEnd(24).slice(0, 24) + LF;
   c += DLINE + LF;
-  c += 'TOKEN    : ' + DBL_HT + BOLD_ON + String(bill.token_number) + NORMAL + BOLD_OFF + LF;
-  c += 'Type     : ' + DBL_HT + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
+  c += 'TOKEN    : ' + BOLD_ON + String(bill.token_number) + BOLD_OFF + LF;
+  c += 'Type     : ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
   if (bill.customer_name)    c += 'Customer : ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
-  if (bill.customer_phone)   c += 'Phone    : ' + DBL_HT + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
-  if (bill.delivery_address) c += 'Dest     : ' + DBL_HT + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
+  if (bill.customer_phone)   c += 'Phone    : ' + BOLD_ON + bill.customer_phone + BOLD_OFF + LF;
+  if (bill.delivery_address) c += 'Dest     : ' + BOLD_ON + bill.delivery_address + BOLD_OFF + LF;
   if (bill.cashier_name) c += 'Taken By : ' + bill.cashier_name + LF;
   c += DLINE + LF;
 
@@ -302,7 +302,7 @@ router.post('/', async (req, res) => {
       subtotal, delivery_enabled: delivery_enabled ? 1 : 0, delivery_charge: delivery_charge || 0,
       discount_enabled: discount_enabled ? 1 : 0, discount_type: discount_type || 'fixed',
       discount_value: discount_value || 0, discount_amount: discount_amount || 0,
-      grand_total, created_at: now, cashier_name: req.user.full_name
+      grand_total, created_at: now, cashier_name: req.user.full_name || req.user.username
     };
 
     let printResults = [];
@@ -374,7 +374,10 @@ router.post('/', async (req, res) => {
 router.post('/:billId/reprint', async (req, res) => {
   try {
     const { type } = req.body; // 'receipt', 'kot', 'checklist', 'both'
-    const [bills] = await pool.execute('SELECT * FROM bills WHERE bill_id = ?', [req.params.billId]);
+    const [bills] = await pool.execute(
+      'SELECT b.*, u.full_name AS cashier_name FROM bills b LEFT JOIN users u ON b.created_by = u.id WHERE b.bill_id = ?',
+      [req.params.billId]
+    );
     if (!bills.length) return res.status(404).json({ error: 'Bill not found.' });
     const [items] = await pool.execute('SELECT * FROM bill_items WHERE bill_id = ?', [req.params.billId]);
     const [settingsRows] = await pool.execute('SELECT key_name, value FROM settings');

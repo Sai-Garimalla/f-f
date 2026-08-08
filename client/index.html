@@ -6,27 +6,30 @@
 <title>Fire & Flavour — Login</title>
 <link rel="stylesheet" href="css/style.css">
 <style>
-  body { background: var(--charcoal); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .login-bg { position: fixed; inset: 0; background: radial-gradient(ellipse at 20% 50%, rgba(183,28,28,0.15) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(245,124,0,0.1) 0%, transparent 60%); pointer-events: none; }
-  .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; width: 380px; padding: 36px 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.5); position: relative; z-index: 1; animation: fadeUp .4s ease; }
+  body { background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%); display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-bg { position: fixed; inset: 0; background: radial-gradient(ellipse at 20% 50%, rgba(230,81,0,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 50%, rgba(245,124,0,0.07) 0%, transparent 60%); pointer-events: none; }
+  .login-card { background: #FFFFFF; border: 1px solid #FFCC80; border-radius: 18px; width: 400px; padding: 36px 32px; box-shadow: 0 12px 40px rgba(245,124,0,0.15); position: relative; z-index: 1; animation: fadeUp .4s ease; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
   .login-logo { text-align: center; margin-bottom: 28px; }
-  .login-logo .flame-icon { font-size: 48px; line-height: 1; display: block; }
-  .login-logo h1 { font-size: 22px; font-weight: 800; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-top: 8px; }
-  .login-logo p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-  .login-form .form-control { background: #1A1A1A; border-color: #3A3A3A; }
-  .login-form .form-control:focus { border-color: var(--flame); box-shadow: 0 0 0 3px rgba(245,124,0,0.15); }
+  .login-logo img { width: 80px; height: 80px; object-fit: contain; }
+  .login-logo h1 { font-size: 22px; font-weight: 800; color: #E65100; margin-top: 8px; }
+  .login-logo p { font-size: 12px; color: #8D6E63; margin-top: 4px; }
+  .form-label { font-size: 12px; font-weight: 600; color: #5D3A1A; display: block; margin-bottom: 5px; }
+  .form-control { width: 100%; padding: 10px 14px; border: 1.5px solid #FFCC80; border-radius: 8px; background: #FFFDE7; color: #3E2000; font-size: 13px; outline: none; transition: border .2s, box-shadow .2s; }
+  .form-control:focus { border-color: #E65100; box-shadow: 0 0 0 3px rgba(230,81,0,0.12); }
+  .form-control::placeholder { color: #BCAAA4; }
+  .form-group { margin-bottom: 16px; }
   .remember-row { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
-  .remember-row input[type=checkbox] { accent-color: var(--flame); width: 14px; height: 14px; cursor: pointer; }
-  .remember-row label { font-size: 12px; color: var(--text-muted); cursor: pointer; }
-  .btn-login { width: 100%; padding: 12px; font-size: 14px; font-weight: 700; border-radius: 9px; letter-spacing: .3px; }
-  .setup-link { text-align: center; margin-top: 14px; font-size: 12px; color: var(--text-muted); }
-  .setup-link a { color: var(--flame-light); cursor: pointer; }
+  .remember-row input[type=checkbox] { accent-color: #E65100; width: 14px; height: 14px; cursor: pointer; }
+  .remember-row label { font-size: 12px; color: #8D6E63; cursor: pointer; }
+  .btn-login { width: 100%; padding: 13px; font-size: 14px; font-weight: 700; border-radius: 9px; border: none; cursor: pointer; background: linear-gradient(135deg,#E65100,#FF8F00); color: #fff; transition: opacity .2s; }
+  .btn-login:hover { opacity: .9; }
+  .btn-login:disabled { opacity: .6; cursor: not-allowed; }
+  .setup-link { text-align: center; margin-top: 14px; font-size: 12px; color: #8D6E63; }
+  .setup-link a { color: #E65100; cursor: pointer; font-weight: 600; }
   .setup-link a:hover { text-decoration: underline; }
-  .error-msg { background: rgba(229,57,53,0.15); border: 1px solid rgba(229,57,53,0.3); color: #EF9A9A; padding: 10px 12px; border-radius: 7px; font-size: 12px; margin-bottom: 14px; display: none; }
-  /* Setup form */
+  .error-msg { background: #FFEBEE; border: 1px solid #EF9A9A; color: #C62828; padding: 10px 12px; border-radius: 7px; font-size: 12px; margin-bottom: 14px; display: none; }
   #setup-card { display: none; }
-  .divider { text-align: center; font-size: 10px; color: var(--text-muted); margin: 12px 0; }
 </style>
 </head>
 <body>
@@ -35,7 +38,7 @@
 <!-- Login Card -->
 <div class="login-card" id="login-card">
   <div class="login-logo">
-    <span class="flame-icon">🔥</span>
+    <img src="assets/logo.png" alt="Fire & Flavour">
     <h1>Fire & Flavour</h1>
     <p>Restaurant Management System</p>
   </div>

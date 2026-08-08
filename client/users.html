@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Users — Fire & Flavour</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .user-card { background:#fff; border:1px solid #FFCC80; border-radius:12px; padding:16px; display:flex; align-items:center; gap:14px; transition:.15s; }
+  .user-card:hover { border-color:#E65100; background:#FFF8F0; }
+  .user-av { width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,#E65100,#FF8F00); color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; flex-shrink:0; }
+  .user-info { flex:1; }
+  .user-name { font-size:14px; font-weight:700; color:#3E2000; }
+  .user-meta { font-size:11px; color:#8D6E63; margin-top:2px; }
+  .badge-admin { background:#FFF3E0; color:#E65100; border:1px solid #FFCC80; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+  .badge-staff { background:#E8F5E9; color:#2E7D32; border:1px solid #A5D6A7; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+  .badge-inactive { background:#FFEBEE; color:#C62828; border:1px solid #EF9A9A; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main-content">
+    <div class="page-header">
+      <div><h2>👥 Staff Users</h2><p>Manage team members and access levels</p></div>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Add Staff</button>
+    </div>
+    <div class="page-body">
+      <div class="grid-3" id="user-grid">
+        <div class="loader-full"><div class="loader"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Add Staff User</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <div id="modal-error" style="display:none; background:#FFEBEE; border:1px solid #EF9A9A; color:#C62828; padding:10px 12px; border-radius:8px; font-size:12px; margin-bottom:14px;"></div>
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input type="text" id="m-name" class="form-control" placeholder="e.g. Ravi Kumar">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username *</label>
+        <input type="text" id="m-username" class="form-control" placeholder="e.g. ravi123">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="tel" id="m-phone" class="form-control" placeholder="10-digit mobile">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="m-email" class="form-control" placeholder="optional">
+      </div>
+      <div class="form-group" id="pw-group">
+        <label class="form-label">Password *</label>
+        <input type="password" id="m-password" class="form-control" placeholder="Min 6 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select id="m-role" class="form-control">
+          <option value="staff">👨‍🍳 Staff (Order & Bill)</option>
+          <option value="admin">🔑 Admin (Full Access)</option>
+        </select>
+      </div>
+      <div class="form-group" id="status-group" style="display:none">
+        <label class="form-label">Status</label>
+        <select id="m-status" class="form-control">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveUser()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+if (!authGuard()) throw 0;
+const user = getUser();
+if (user && user.role !== 'admin') { window.location.href='/billing.html'; throw 0; }
+initSidebar('users');
+
+let editingId = null;
+
+async function loadUsers() {
+  const grid = document.getElementById('user-grid');
+  grid.innerHTML = '<div class="loader-full"><div class="loader"></div></div>';
+  try {
+    const data = await apiFetch('/users');
+    if (!data.users.length) {
+      grid.innerHTML = '<p style="color:#8D6E63;padding:20px">No users found.</p>';
+      return;
+    }
+    grid.innerHTML = data.users.map(u => `
+      <div class="user-card">
+        <div class="user-av">${u.full_name[0].toUpperCase()}</div>
+        <div class="user-info">
+          <div class="user-name">${u.full_name}</div>
+          <div class="user-meta">@${u.username}${u.phone ? ' · 📞'+u.phone : ''}</div>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+            <span class="${u.role==='admin'?'badge-admin':'badge-staff'}">${u.role==='admin'?'🔑 Admin':'👨‍🍳 Staff'}</span>
+            ${u.status==='inactive'?'<span class="badge-inactive">Inactive</span>':''}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="btn btn-secondary btn-sm" onclick="openEditModal(${u.id},'${u.full_name.replace(/'/g,"\\'")}','${u.phone||''}','${u.email||''}','${u.role}','${u.status}')">✏️ Edit</button>
+          ${u.id!==parseInt('${getUser().id}') ? `<button class="btn btn-sm" style="background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A" onclick="deactivateUser(${u.id})">🚫 Disable</button>` : ''}
+        </div>
+      </div>`).join('');
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add Staff User';
+  document.getElementById('modal-error').style.display='none';
+  document.getElementById('m-name').value='';
+  document.getElementById('m-username').value='';
+  document.getElementById('m-phone').value='';
+  document.getElementById('m-email').value='';
+  document.getElementById('m-password').value='';
+  document.getElementById('m-role').value='staff';
+  document.getElementById('m-status').value='active';
+  document.getElementById('pw-group').style.display='block';
+  document.getElementById('status-group').style.display='none';
+  document.getElementById('m-username').disabled=false;
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function openEditModal(id, name, phone, email, role, status) {
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Edit Staff User';
+  document.getElementById('modal-error').style.display='none';
+  document.getElementById('m-name').value=name;
+  document.getElementById('m-phone').value=phone;
+  document.getElementById('m-email').value=email;
+  document.getElementById('m-role').value=role;
+  document.getElementById('m-status').value=status;
+  document.getElementById('pw-group').style.display='none';
+  document.getElementById('status-group').style.display='block';
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('user-modal').classList.remove('open'); }
+
+async function saveUser() {
+  const err = document.getElementById('modal-error');
+  err.style.display='none';
+  const btn = document.getElementById('modal-save-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  try {
+    if (editingId) {
+      await apiFetch(`/users/${editingId}`, { method:'PATCH', body: JSON.stringify({
+        full_name: document.getElementById('m-name').value,
+        phone: document.getElementById('m-phone').value,
+        role: document.getElementById('m-role').value,
+        status: document.getElementById('m-status').value,
+      })});
+    } else {
+      const pw = document.getElementById('m-password').value;
+      if (pw.length < 6) throw new Error('Password must be at least 6 characters.');
+      await apiFetch('/users', { method:'POST', body: JSON.stringify({
+        full_name: document.getElementById('m-name').value,
+        username: document.getElementById('m-username').value,
+        phone: document.getElementById('m-phone').value,
+        email: document.getElementById('m-email').value,
+        password: pw,
+        role: document.getElementById('m-role').value,
+      })});
+    }
+    closeModal();
+    showToast('User saved successfully','success');
+    loadUsers();
+  } catch(e) {
+    err.textContent=e.message; err.style.display='block';
+  } finally { btn.disabled=false; btn.textContent='Save User'; }
+}
+
+async function deactivateUser(id) {
+  if (!confirm('Disable this staff account?')) return;
+  try {
+    await apiFetch(`/users/${id}`, { method:'DELETE' });
+    showToast('Account disabled','success');
+    loadUsers();
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+loadUsers();
+</script>
+</body>
+</html>

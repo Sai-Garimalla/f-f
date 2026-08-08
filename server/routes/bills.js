@@ -5,15 +5,48 @@ const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
 
-// Get recent bills with pagination
+// ── Customer lookup by phone (must come BEFORE /:billId) ──
+router.get('/customer/:phone', async (req, res) => {
+  try {
+    const phone = req.params.phone;
+    const [nameResult] = await pool.execute(
+      "SELECT customer_name FROM bills WHERE customer_phone=? AND customer_name IS NOT NULL AND status='completed' ORDER BY created_at DESC LIMIT 1",
+      [phone]
+    );
+    const customer_name = nameResult.length ? nameResult[0].customer_name : null;
+
+    const [orders] = await pool.execute(
+      `SELECT b.bill_id, b.bill_number, b.token_number, b.created_at,
+              b.grand_total, b.order_type, b.subtotal, b.discount_amount
+       FROM bills b WHERE b.customer_phone=? AND b.status='completed'
+       ORDER BY b.created_at DESC LIMIT 20`,
+      [phone]
+    );
+
+    // Total spent by this customer
+    const [totals] = await pool.execute(
+      "SELECT COALESCE(SUM(grand_total),0) AS total_spent, COUNT(*) AS visit_count FROM bills WHERE customer_phone=? AND status='completed'",
+      [phone]
+    );
+
+    res.json({
+      customer_name,
+      total_spent: parseFloat(totals[0].total_spent),
+      visit_count: parseInt(totals[0].visit_count),
+      history: orders
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── GET list of bills with filters + ordering ──
 router.get('/', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const page   = parseInt(req.query.page) || 1;
+    const limit  = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
     const search = req.query.search || '';
-    const date = req.query.date || '';
-    const status = req.query.status || 'completed'; // Filter by status
+    const date   = req.query.date || '';
+    const status = req.query.status || 'completed';
 
     let where = 'WHERE b.status = ?';
     const params = [status];
@@ -31,7 +64,8 @@ router.get('/', async (req, res) => {
     const [countResult] = await pool.execute(countSql, params);
 
     const listSql = `
-      SELECT b.bill_id, b.bill_number, b.token_number, b.customer_phone, b.order_type,
+      SELECT b.bill_id, b.bill_number, b.token_number,
+             b.customer_name, b.customer_phone, b.order_type, b.status,
              b.grand_total, b.created_at, u.full_name AS cashier_name
       FROM bills b
       LEFT JOIN users u ON b.created_by = u.id
@@ -45,12 +79,10 @@ router.get('/', async (req, res) => {
       bills,
       pagination: { page, limit, total: countResult[0].total, pages: Math.ceil(countResult[0].total / limit) }
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Get single bill with items
+// ── GET single bill with items ──
 router.get('/:billId', async (req, res) => {
   try {
     const [bills] = await pool.execute(
@@ -59,47 +91,20 @@ router.get('/:billId', async (req, res) => {
       [req.params.billId]
     );
     if (!bills.length) return res.status(404).json({ error: 'Bill not found.' });
-    const [items] = await pool.execute('SELECT * FROM bill_items WHERE bill_id = ? ORDER BY id', [req.params.billId]);
+    const [items] = await pool.execute('SELECT * FROM bill_items WHERE bill_id=? ORDER BY id', [req.params.billId]);
     res.json({ bill: bills[0], items });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Cancel a bill
+// ── POST cancel a bill ──
 router.post('/:billId/cancel', async (req, res) => {
   try {
     const [result] = await pool.execute(
-      "UPDATE bills SET status = 'cancelled' WHERE bill_id = ?",
-      [req.params.billId]
+      "UPDATE bills SET status='cancelled' WHERE bill_id=?", [req.params.billId]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Bill not found' });
-    res.json({ success: true, message: 'Bill cancelled successfully' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Get customer history by phone
-router.get('/customer/:phone', async (req, res) => {
-  try {
-    // Get their name (most recent)
-    const [nameResult] = await pool.execute(
-      "SELECT customer_name FROM bills WHERE customer_phone = ? AND customer_name IS NOT NULL ORDER BY created_at DESC LIMIT 1",
-      [req.params.phone]
-    );
-    const customer_name = nameResult.length ? nameResult[0].customer_name : null;
-
-    // Get their last 10 completed orders
-    const [orders] = await pool.execute(
-      "SELECT bill_id, bill_number, created_at, grand_total, order_type FROM bills WHERE customer_phone = ? AND status = 'completed' ORDER BY created_at DESC LIMIT 10",
-      [req.params.phone]
-    );
-
-    res.json({ customer_name, history: orders });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

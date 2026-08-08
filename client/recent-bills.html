@@ -39,13 +39,12 @@
     <div class="page-body">
       <div class="card">
         <div class="filters">
-          <input type="text" class="form-control" id="search-input" placeholder="🔍 Bill no, phone, token…">
-          <input type="date" class="form-control" id="date-filter">
-          <select id="status-filter" class="form-control">
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+          <input type="text" class="form-control" id="search-input" placeholder="🔍 Name, bill no, phone, token…" oninput="debounceFilter()">
+          <input type="date" class="form-control" id="date-filter" onchange="loadBills()">
+          <select id="status-filter" class="form-control" onchange="loadBills()">
+            <option value="completed">✅ Completed</option>
+            <option value="cancelled">🚫 Cancelled</option>
           </select>
-          <button class="btn btn-secondary" onclick="loadBills()">Filter</button>
           <button class="btn btn-secondary" onclick="clearFilters()">Clear</button>
           <span id="summary-text" style="font-size:12px;color:var(--text-muted);margin-left:auto"></span>
         </div>
@@ -268,7 +267,8 @@ async function cancelBill() {
 function closeModal() { document.getElementById('bill-modal').classList.remove('open'); }
 function clearFilters() { document.getElementById('search-input').value = ''; document.getElementById('date-filter').value = ''; document.getElementById('status-filter').value = 'completed'; loadBills(); }
 
-document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') loadBills(); });
+let _filterTimer = null;
+function debounceFilter() { clearTimeout(_filterTimer); _filterTimer = setTimeout(() => loadBills(), 350); }
 loadBills();
 </script>
 </body>

@@ -308,37 +308,52 @@ router.post('/', async (req, res) => {
     let printResults = [];
     let receiptB64 = null, kotB64 = null, checklistB64 = null;
 
-    // Only auto-print if it's a completed bill AND print_intent !== false
-    if (billStatus === 'completed' && print_intent !== false) {
-      if (settings.auto_print_receipt === '1') {
+    // Helper: should we print this doc type?
+    const shouldPrint = (docType) => {
+      if (print_intent === false || !print_intent) return false;
+      if (print_intent === true || print_intent === 'all') return true;
+      const map = {
+        kot: ['kot','kot_receipt','kot_checklist','all'],
+        receipt: ['receipt','kot_receipt','receipt_checklist','all'],
+        checklist: ['checklist','kot_checklist','receipt_checklist','all'],
+      };
+      return (map[docType] || []).includes(print_intent);
+    };
+
+    if (billStatus === 'completed') {
+      // Receipt
+      if (shouldPrint('receipt') && settings.customer_printer_ip) {
         const data = await buildCustomerReceipt(bill, items, settings);
         receiptB64 = data.toString('base64');
-        if (settings.customer_printer_ip) {
-          try {
-            const r = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, data);
-            printResults.push({ type: 'receipt', ...r });
-          } catch (e) { printResults.push({ type: 'receipt', error: e.message }); }
-        }
+        try { const r = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, data); printResults.push({ type:'receipt', ...r }); }
+        catch(e) { printResults.push({ type:'receipt', error: e.message }); }
+      } else if (shouldPrint('receipt')) {
+        const data = await buildCustomerReceipt(bill, items, settings);
+        receiptB64 = data.toString('base64');
+        printResults.push({ type:'receipt', skipped:true, reason:'No customer printer IP' });
       }
-      if (settings.auto_print_kot === '1') {
+      // KOT
+      if (shouldPrint('kot') && settings.kitchen_printer_ip) {
         const data = await buildKOT(bill, items, settings);
         kotB64 = data.toString('base64');
-        if (settings.kitchen_printer_ip) {
-          try {
-            const r = await printToPrinter(settings.kitchen_printer_ip, settings.kitchen_printer_port, data);
-            printResults.push({ type: 'kot', ...r });
-          } catch (e) { printResults.push({ type: 'kot', error: e.message }); }
-        }
+        try { const r = await printToPrinter(settings.kitchen_printer_ip, settings.kitchen_printer_port, data); printResults.push({ type:'kot', ...r }); }
+        catch(e) { printResults.push({ type:'kot', error: e.message }); }
+      } else if (shouldPrint('kot')) {
+        const data = await buildKOT(bill, items, settings);
+        kotB64 = data.toString('base64');
+        printResults.push({ type:'kot', skipped:true, reason:'No kitchen printer IP' });
       }
-      if (settings.auto_print_checklist === '1') {
+      // Checklist (skip for Dine-in)
+      const isDineIn = (bill.order_type || '').toLowerCase().includes('dine');
+      if (!isDineIn && shouldPrint('checklist') && settings.customer_printer_ip) {
         const data = await buildCounterChecklist(bill, items, settings);
         checklistB64 = data.toString('base64');
-        if (settings.customer_printer_ip) {
-          try {
-            const r = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, data);
-            printResults.push({ type: 'checklist', ...r });
-          } catch (e) { printResults.push({ type: 'checklist', error: e.message }); }
-        }
+        try { const r = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, data); printResults.push({ type:'checklist', ...r }); }
+        catch(e) { printResults.push({ type:'checklist', error: e.message }); }
+      } else if (!isDineIn && shouldPrint('checklist')) {
+        const data = await buildCounterChecklist(bill, items, settings);
+        checklistB64 = data.toString('base64');
+        printResults.push({ type:'checklist', skipped:true, reason:'No printer IP' });
       }
     }
 

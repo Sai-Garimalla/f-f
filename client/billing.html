@@ -272,9 +272,19 @@
         </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closePreviewModal()">Cancel</button>
-      <button class="btn btn-primary" id="confirm-print-btn" onclick="confirmSaveAndPrint()">✅ Confirm &amp; Print</button>
+    <div class="modal-footer" style="flex-direction:column; gap:10px; align-items:stretch;">
+      <div style="font-size:12px; font-weight:700; color:#8D6E63; text-align:center;">📤 Choose what to print:</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;" id="print-options-row">
+        <button class="btn btn-secondary btn-sm" onclick="confirmPrint('kot')">🍳 KOT Only</button>
+        <button class="btn btn-secondary btn-sm" onclick="confirmPrint('receipt')">🧾 Invoice Only</button>
+        <button class="btn btn-secondary btn-sm print-check-opt" onclick="confirmPrint('checklist')">✅ Checklist Only</button>
+        <button class="btn btn-secondary btn-sm" onclick="confirmPrint('kot_receipt')">🍳+🧾 KOT + Invoice</button>
+        <button class="btn btn-secondary btn-sm print-check-opt" onclick="confirmPrint('kot_checklist')">🍳+✅ KOT + Checklist</button>
+        <button class="btn btn-secondary btn-sm print-check-opt" onclick="confirmPrint('receipt_checklist')">🧾+✅ Invoice + Checklist</button>
+        <button class="btn btn-primary btn-sm print-check-opt" onclick="confirmPrint('all')">🖨 All 3</button>
+        <button class="btn btn-primary btn-sm" onclick="confirmPrint('save_only')">💾 Save (No Print)</button>
+      </div>
+      <button class="btn btn-secondary" style="border-color:#EF9A9A;color:#C62828" onclick="closePreviewModal()">✕ Cancel</button>
     </div>
   </div>
 </div>
@@ -900,13 +910,26 @@ function previewAddItem() {
 function showPrintPreview() {
   if (!billItems.length) { showToast('Add items before saving.', 'warning'); return; }
   buildPreviews();
+
+  // Hide checklist options for Dine-in
+  const orderType = document.getElementById('order-type').value;
+  const isDineIn = orderType === 'Dine-in';
+  document.querySelectorAll('.print-check-opt').forEach(el => {
+    el.style.display = isDineIn ? 'none' : '';
+  });
+
   document.getElementById('preview-modal').classList.add('open');
 }
 
-async function confirmSaveAndPrint() {
+async function confirmPrint(printType) {
   closePreviewModal();
-  await saveBill(true);
+  // Map combo types to print_intent
+  const printIntent = printType === 'save_only' ? false : printType;
+  await saveBill(printIntent);
 }
+
+// Keep old function as alias for backwards compat
+async function confirmSaveAndPrint() { await confirmPrint('all'); }
 
 async function saveBill(print=true) {
   if (!billItems.length) { showToast('Add items before saving.', 'warning'); return; }

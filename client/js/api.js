@@ -46,6 +46,7 @@ function showToast(message, type = 'success') {
 // Sidebar setup
 function initSidebar(activePage) {
   const user = getUser();
+  const isAdmin = user && user.role === 'admin';
   const sidebarHTML = `
   <div class="sidebar-logo" style="text-align: center;">
     <img src="/assets/logo.png" alt="F&F Logo" style="width: 80px; height: 80px; object-fit: contain; border-radius: 8px; margin-bottom: 8px;">
@@ -54,17 +55,19 @@ function initSidebar(activePage) {
   </div>
   <nav class="sidebar-nav">
     <div class="nav-label">Main</div>
-    <a href="/dashboard.html" class="nav-link ${activePage==='dashboard'?'active':''}"><span class="nav-icon">📊</span> Dashboard</a>
+    ${isAdmin ? `<a href="/dashboard.html" class="nav-link ${activePage==='dashboard'?'active':''}"><span class="nav-icon">📊</span> Dashboard</a>` : ''}
     <a href="/billing.html" class="nav-link ${activePage==='billing'?'active':''}"><span class="nav-icon">🧾</span> New Bill</a>
     <a href="/recent-bills.html" class="nav-link ${activePage==='bills'?'active':''}"><span class="nav-icon">📋</span> Recent Bills</a>
+    <a href="/customer-search.html" class="nav-link ${activePage==='customer-search'?'active':''}"><span class="nav-icon">🔍</span> Customer Search</a>
     <div class="nav-label">Management</div>
     <a href="/menu.html" class="nav-link ${activePage==='menu'?'active':''}"><span class="nav-icon">🍽️</span> Menu</a>
-    <a href="/settings.html" class="nav-link ${activePage==='settings'?'active':''}"><span class="nav-icon">⚙️</span> Settings</a>
+    ${isAdmin ? `<a href="/users.html" class="nav-link ${activePage==='users'?'active':''}"><span class="nav-icon">👥</span> Staff Users</a>` : ''}
+    ${isAdmin ? `<a href="/settings.html" class="nav-link ${activePage==='settings'?'active':''}"><span class="nav-icon">⚙️</span> Settings</a>` : ''}
   </nav>
   <div class="sidebar-footer">
     <div class="user-info">
       <div class="user-avatar">${user ? user.full_name[0].toUpperCase() : 'A'}</div>
-      <div><div class="user-name">${user ? user.full_name : 'Admin'}</div><div class="user-role">${user ? user.role : ''}</div></div>
+      <div><div class="user-name">${user ? user.full_name : 'Admin'}</div><div class="user-role">${user ? (user.role==='admin'?'🔑 Admin':'👨‍🍳 Staff') : ''}</div></div>
     </div>
     <button class="btn-logout" onclick="logout()">🚪 Logout</button>
   </div>`;
@@ -94,11 +97,11 @@ function initSidebar(activePage) {
     bn.id = 'bottom-nav';
     bn.className = 'bottom-nav';
     bn.innerHTML = `<nav>
-      <a href="/dashboard.html" class="bn-item ${activePage==='dashboard'?'active':''}"><span class="bn-icon">📊</span>Dash</a>
+      ${isAdmin ? `<a href="/dashboard.html" class="bn-item ${activePage==='dashboard'?'active':''}"><span class="bn-icon">📊</span>Dash</a>` : ''}
       <a href="/billing.html"   class="bn-item ${activePage==='billing'?'active':''}"><span class="bn-icon">🧾</span>Bill</a>
       <a href="/recent-bills.html" class="bn-item ${activePage==='bills'?'active':''}"><span class="bn-icon">📋</span>Bills</a>
+      <a href="/customer-search.html" class="bn-item ${activePage==='customer-search'?'active':''}"><span class="bn-icon">🔍</span>Search</a>
       <a href="/menu.html"      class="bn-item ${activePage==='menu'?'active':''}"><span class="bn-icon">🍽️</span>Menu</a>
-      <a href="/settings.html"  class="bn-item ${activePage==='settings'?'active':''}"><span class="bn-icon">⚙️</span>Settings</a>
     </nav>`;
     document.body.appendChild(bn);
   }

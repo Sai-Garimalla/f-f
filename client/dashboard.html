@@ -6,11 +6,40 @@
 <title>Dashboard — Fire & Flavour</title>
 <link rel="stylesheet" href="css/style.css">
 <style>
-  .chart-bar-wrap { display: flex; align-items: flex-end; gap: 6px; height: 80px; margin-top: 10px; }
-  .chart-bar { flex: 1; background: var(--gradient); border-radius: 4px 4px 0 0; min-height: 4px; transition: height .4s ease; position: relative; }
-  .chart-bar:hover::after { content: attr(data-tip); position: absolute; bottom: 105%; left: 50%; transform: translateX(-50%); background: #000; color: #fff; font-size: 10px; padding: 3px 6px; border-radius: 4px; white-space: nowrap; }
-  .recent-bill-row { display: grid; grid-template-columns: 60px 1fr 90px 110px; gap: 8px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--border); font-size: 12px; }
-  .token-badge { background: var(--gradient); border-radius: 6px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 14px; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+  .kpi { background:#fff; border:1px solid #FFE0B2; border-radius:12px; padding:16px; text-align:center; transition:.15s; }
+  .kpi:hover { border-color:#E65100; }
+  .kpi-icon { font-size:26px; margin-bottom:6px; }
+  .kpi-val { font-size:22px; font-weight:800; color:#E65100; }
+  .kpi-lbl { font-size:10px; color:#8D6E63; margin-top:3px; text-transform:uppercase; letter-spacing:.5px; }
+  .kpi-sub { font-size:11px; color:#BCAAA4; margin-top:4px; }
+
+  /* Breakdown cards */
+  .type-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+  .type-card { border-radius:12px; padding:14px; color:#fff; text-align:center; }
+  .type-card.dinein  { background:linear-gradient(135deg,#E65100,#FF6D00); }
+  .type-card.takeaway{ background:linear-gradient(135deg,#1565C0,#1E88E5); }
+  .type-card.delivery{ background:linear-gradient(135deg,#2E7D32,#43A047); }
+  .type-card .tv { font-size:20px; font-weight:800; }
+  .type-card .tc { font-size:22px; font-weight:800; margin-top:4px; }
+  .type-card .tl { font-size:10px; opacity:.85; text-transform:uppercase; letter-spacing:.5px; margin-top:4px; }
+
+  /* Chart */
+  .chart-bar-wrap { display:flex; align-items:flex-end; gap:5px; height:90px; margin-top:10px; }
+  .chart-bar { flex:1; background:linear-gradient(180deg,#E65100,#FF8F00); border-radius:4px 4px 0 0; min-height:4px; transition:height .4s ease; cursor:pointer; position:relative; }
+  .chart-bar:hover::after { content:attr(data-tip); position:absolute; bottom:110%; left:50%; transform:translateX(-50%); background:#3E2000; color:#fff; font-size:10px; padding:3px 7px; border-radius:5px; white-space:nowrap; pointer-events:none; }
+
+  /* Top items table */
+  .top-item-row { display:grid; grid-template-columns:24px 1fr 50px 80px; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid #FFE0B2; font-size:12px; }
+  .rank-badge { background:linear-gradient(135deg,#E65100,#FF8F00); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:10px; flex-shrink:0; }
+
+  /* Recent bill row */
+  .recent-row { display:grid; grid-template-columns:55px 1fr 70px 80px; gap:8px; align-items:center; padding:9px 14px; border-bottom:1px solid #FFE0B2; font-size:12px; }
+  .tok { background:linear-gradient(135deg,#E65100,#FF8F00); color:#fff; border-radius:6px; text-align:center; padding:4px 6px; font-weight:800; font-size:13px; }
+  .badge-cancel { background:#FFEBEE; color:#C62828; border:1px solid #EF9A9A; padding:2px 6px; border-radius:8px; font-size:9px; font-weight:700; }
+  .badge-ok { background:#E8F5E9; color:#2E7D32; border:1px solid #A5D6A7; padding:2px 6px; border-radius:8px; font-size:9px; font-weight:700; }
+
+  @media(max-width:768px){ .kpi-grid{grid-template-columns:1fr 1fr} .type-grid{grid-template-columns:1fr 1fr} }
 </style>
 </head>
 <body>
@@ -18,67 +47,106 @@
   <div class="sidebar" id="sidebar"></div>
   <div class="main-content">
     <div class="page-header">
-      <div><h2>📊 Dashboard</h2><p id="greeting">Good morning! Here's your business overview.</p></div>
+      <div>
+        <h2>📊 Dashboard</h2>
+        <p id="greeting">Good morning! Here's your business overview.</p>
+      </div>
       <div style="font-size:12px;color:var(--text-muted)" id="current-time"></div>
     </div>
     <div class="page-body">
-      <!-- Stat Cards -->
-      <div class="grid-4" style="margin-bottom:20px" id="stat-cards">
-        <div class="stat-card flame"><div class="stat-icon">💰</div><div class="stat-value" id="stat-sales">—</div><div class="stat-label">Today's Sales</div></div>
-        <div class="stat-card red"><div class="stat-icon">🧾</div><div class="stat-value" id="stat-bills">—</div><div class="stat-label">Today's Bills</div></div>
-        <div class="stat-card green"><div class="stat-icon">🍽️</div><div class="stat-value" id="stat-menu">—</div><div class="stat-label">Menu Items</div></div>
-        <div class="stat-card blue"><div class="stat-icon">📈</div><div class="stat-value" id="stat-avg">—</div><div class="stat-label">Avg Bill Value</div></div>
+
+      <!-- KPI Row -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi"><div class="kpi-icon">💰</div><div class="kpi-val" id="k-sales">—</div><div class="kpi-lbl">Today's Sales</div><div class="kpi-sub" id="k-msales"></div></div>
+        <div class="kpi"><div class="kpi-icon">🧾</div><div class="kpi-val" id="k-bills">—</div><div class="kpi-lbl">Today's Bills</div><div class="kpi-sub" id="k-cancelled"></div></div>
+        <div class="kpi"><div class="kpi-icon">📈</div><div class="kpi-val" id="k-avg">—</div><div class="kpi-lbl">Avg Bill Value</div></div>
+        <div class="kpi"><div class="kpi-icon">👥</div><div class="kpi-val" id="k-staff">—</div><div class="kpi-lbl">Active Staff</div></div>
       </div>
-      <!-- Charts + Recent -->
-      <div class="grid-2">
+
+      <!-- Type Breakdown -->
+      <div class="type-grid" style="margin-bottom:18px" id="type-grid">
+        <div class="type-card dinein">
+          <div class="tl">🍽 Dine-in</div><div class="tc" id="t-dinein-s">—</div><div class="tv" id="t-dinein-c">— orders</div>
+        </div>
+        <div class="type-card takeaway">
+          <div class="tl">🛍 Takeaway</div><div class="tc" id="t-take-s">—</div><div class="tv" id="t-take-c">— orders</div>
+        </div>
+        <div class="type-card delivery">
+          <div class="tl">🛵 Delivery</div><div class="tc" id="t-del-s">—</div><div class="tv" id="t-del-c">— orders</div>
+        </div>
+      </div>
+
+      <!-- Charts & Tables Row 1 -->
+      <div class="grid-2" style="margin-bottom:18px">
         <div class="card">
           <div class="card-header"><span class="card-title">📅 Last 7 Days Sales</span></div>
           <div id="weekly-chart" class="chart-bar-wrap"></div>
-          <div id="weekly-labels" style="display:flex;gap:6px;margin-top:4px;font-size:9px;color:var(--text-muted)"></div>
+          <div id="weekly-labels" style="display:flex;gap:5px;margin-top:4px;font-size:9px;color:var(--text-muted)"></div>
         </div>
         <div class="card">
-          <div class="card-header">
-            <span class="card-title">🕐 Recent Bills</span>
-            <a href="/billing.html" class="btn btn-primary btn-sm">+ New Bill</a>
-          </div>
-          <div id="recent-bills-list">
-            <div class="loader-full"><div class="loader"></div></div>
-          </div>
+          <div class="card-header"><span class="card-title">🔥 Top Items Today</span></div>
+          <div id="top-items-list"><div class="loader-full"><div class="loader"></div></div></div>
         </div>
       </div>
+
+      <!-- Recent Bills + Staff Perf Row 2 -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🕐 Recent Bills Today</span>
+            <a href="/recent-bills.html" class="btn btn-secondary btn-sm">View All</a>
+          </div>
+          <div id="recent-bills-list"><div class="loader-full"><div class="loader"></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">👨‍🍳 Staff Performance Today</span></div>
+          <div id="staff-perf-list"><div class="loader-full"><div class="loader"></div></div></div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
+
 <script src="js/api.js"></script>
 <script>
+const user = getUser();
+if (!user || user.role !== 'admin') { window.location.href='/billing.html'; throw 0; }
 if (!authGuard()) throw 0;
 initSidebar('dashboard');
 
-// Clock
 function updateClock() {
   document.getElementById('current-time').textContent = new Date().toLocaleString('en-IN', { weekday:'long', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
 }
 updateClock(); setInterval(updateClock, 1000);
-
-// Greeting
 const h = new Date().getHours();
 document.getElementById('greeting').textContent = (h<12?'Good morning':h<17?'Good afternoon':'Good evening') + "! Here's your business overview.";
 
 async function loadDashboard() {
   try {
     const d = await apiFetch('/dashboard/stats');
-    document.getElementById('stat-sales').textContent = formatCurrency(d.today_sales);
-    document.getElementById('stat-bills').textContent = d.today_bills;
-    document.getElementById('stat-menu').textContent = d.menu_count;
-    document.getElementById('stat-avg').textContent = d.today_bills > 0 ? formatCurrency(d.today_sales / d.today_bills) : '₹0';
+
+    // KPIs
+    document.getElementById('k-sales').textContent   = formatCurrency(d.today_sales);
+    document.getElementById('k-msales').textContent  = 'Month: ' + formatCurrency(d.month_sales);
+    document.getElementById('k-bills').textContent   = d.today_bills;
+    document.getElementById('k-cancelled').textContent = d.cancelled_count + ' cancelled';
+    document.getElementById('k-avg').textContent     = d.today_bills > 0 ? formatCurrency(d.today_sales / d.today_bills) : '₹0';
+    document.getElementById('k-staff').textContent   = d.staff_count;
+
+    // Type breakdown
+    document.getElementById('t-dinein-s').textContent  = formatCurrency(d.dinein_sales);
+    document.getElementById('t-dinein-c').textContent  = d.dinein_count + ' orders';
+    document.getElementById('t-take-s').textContent    = formatCurrency(d.takeaway_sales);
+    document.getElementById('t-take-c').textContent    = d.takeaway_count + ' orders';
+    document.getElementById('t-del-s').textContent     = formatCurrency(d.delivery_sales);
+    document.getElementById('t-del-c').textContent     = d.delivery_count + ' orders';
 
     // Weekly chart
-    const chartWrap = document.getElementById('weekly-chart');
-    const labelWrap = document.getElementById('weekly-labels');
+    const chartWrap  = document.getElementById('weekly-chart');
+    const labelWrap  = document.getElementById('weekly-labels');
     const maxVal = Math.max(...d.weekly_data.map(x => parseFloat(x.total)), 1);
     chartWrap.innerHTML = ''; labelWrap.innerHTML = '';
-
-    // Fill missing days
     const days = {};
     d.weekly_data.forEach(x => { days[x.date] = x; });
     for (let i = 6; i >= 0; i--) {
@@ -87,27 +155,57 @@ async function loadDashboard() {
       const val = parseFloat(days[key]?.total || 0);
       const pct = Math.max((val / maxVal) * 100, 4);
       const bar = document.createElement('div');
-      bar.className = 'chart-bar';
-      bar.style.height = pct + '%';
-      bar.setAttribute('data-tip', formatCurrency(val));
+      bar.className = 'chart-bar'; bar.style.height = pct + '%';
+      bar.setAttribute('data-tip', `${dt.toLocaleDateString('en-IN',{weekday:'short'})} · ${formatCurrency(val)} · ${days[key]?.bill_count||0} bills`);
       chartWrap.appendChild(bar);
       const lbl = document.createElement('div');
-      lbl.style.flex = '1'; lbl.style.textAlign = 'center';
-      lbl.textContent = dt.toLocaleDateString('en-IN', { weekday: 'short' });
+      lbl.style.flex='1'; lbl.style.textAlign='center';
+      lbl.textContent = dt.toLocaleDateString('en-IN', { weekday:'short' });
       labelWrap.appendChild(lbl);
+    }
+
+    // Top items
+    const topEl = document.getElementById('top-items-list');
+    if (!d.top_items.length) { topEl.innerHTML='<p style="color:#8D6E63;padding:14px;font-size:12px">No orders yet today</p>'; }
+    else {
+      topEl.innerHTML = d.top_items.map((item,i) => `
+        <div class="top-item-row">
+          <div class="rank-badge">${i+1}</div>
+          <div style="font-weight:600;color:#3E2000">${item.item_name}</div>
+          <div style="color:#8D6E63">${item.qty}×</div>
+          <div style="font-weight:700;color:#E65100">${formatCurrency(item.revenue)}</div>
+        </div>`).join('');
     }
 
     // Recent bills
     const list = document.getElementById('recent-bills-list');
-    if (!d.recent_bills.length) { list.innerHTML = '<div class="empty-state"><div class="empty-icon">🧾</div><p>No bills today</p></div>'; return; }
-    list.innerHTML = d.recent_bills.map(b => `
-      <div class="recent-bill-row">
-        <div class="token-badge">#${b.token_number}</div>
-        <div><div style="font-size:12px;font-weight:600">${b.bill_number}</div><div style="font-size:10px;color:var(--text-muted)">${b.customer_phone || 'Walk-in'}</div></div>
-        <div style="font-weight:700;color:var(--flame-light)">${formatCurrency(b.grand_total)}</div>
-        <div style="font-size:10px;color:var(--text-muted)">${formatDateTime(b.created_at)}</div>
-      </div>`).join('');
-  } catch(e) { showToast(e.message, 'error'); }
+    if (!d.recent_bills.length) { list.innerHTML='<div class="empty-state"><div class="empty-icon">🧾</div><p>No bills today</p></div>'; }
+    else {
+      list.innerHTML = d.recent_bills.map(b => `
+        <div class="recent-row">
+          <div class="tok">#${b.token_number}</div>
+          <div>
+            <div style="font-weight:600">${b.customer_name || b.customer_phone || 'Walk-in'}</div>
+            <div style="font-size:10px;color:#8D6E63">${b.order_type||'Dine-in'}</div>
+          </div>
+          <div style="font-weight:700;color:#E65100">${formatCurrency(b.grand_total)}</div>
+          <div><span class="${b.status==='cancelled'?'badge-cancel':'badge-ok'}">${b.status}</span></div>
+        </div>`).join('');
+    }
+
+    // Staff performance
+    const staffEl = document.getElementById('staff-perf-list');
+    if (!d.staff_perf.length) { staffEl.innerHTML='<p style="color:#8D6E63;padding:14px;font-size:12px">No data yet</p>'; }
+    else {
+      staffEl.innerHTML = d.staff_perf.map((s,i) => `
+        <div class="top-item-row">
+          <div class="rank-badge">${i+1}</div>
+          <div style="font-weight:600;color:#3E2000">${s.full_name}</div>
+          <div style="color:#8D6E63">${s.bills_taken} bills</div>
+          <div style="font-weight:700;color:#E65100">${formatCurrency(s.sales)}</div>
+        </div>`).join('');
+    }
+  } catch(e) { showToast(e.message,'error'); }
 }
 loadDashboard();
 </script>

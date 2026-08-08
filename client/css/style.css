@@ -253,7 +253,7 @@ tbody td { padding: 10px 12px; color: var(--text); }
 .cart-fab-count { background:rgba(255,255,255,0.3); border-radius:12px; padding:2px 8px; font-size:12px; }
 
 /* ── Responsive ── */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   :root { --sidebar-w: 240px; }
   .mobile-header { display:flex !important; }
   .bottom-nav { display:block !important; }
@@ -304,7 +304,7 @@ tbody td { padding: 10px 12px; color: var(--text); }
   .filters input, .filters select { flex:1 1 140px; }
 }
 
-@media (min-width:769px) {
+@media (min-width:1025px) {
   .mobile-header { display:none !important; }
   .bottom-nav { display:none !important; }
   .sidebar-overlay { display:none !important; }

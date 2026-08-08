@@ -180,7 +180,7 @@ tbody td { padding: 10px 12px; color: var(--text); }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 
 /* ── Billing Specific ── */
-.billing-layout { display: grid; grid-template-columns: 1fr 400px; gap: 16px; height: calc(100vh - 130px); }
+.billing-layout { display: grid; grid-template-columns: 1fr 400px; gap: 16px; height: calc(100vh - 160px); }
 .bill-panel { background: var(--surface); border: 2px solid #FFCC80; border-radius: var(--radius); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 16px rgba(245,124,0,0.1); }
 .bill-items-list { flex: 1; overflow-y: auto; }
 .bill-item-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid #FFE0B2; }
@@ -272,8 +272,8 @@ tbody td { padding: 10px 12px; color: var(--text); }
   .mob-tabs { display:flex; border-bottom:2px solid #FFCC80; }
   .mob-panel { display:none; }
   .mob-panel.active { display:flex; flex-direction:column; }
-  .search-panel { border:none; border-radius:0; height:calc(100vh - 180px); }
-  .bill-panel { border:none; border-radius:0; min-height:calc(100vh - 120px); }
+  .search-panel { border:none; border-radius:0; height:calc(100dvh - 220px); }
+  .bill-panel { border:none; border-radius:0; min-height:calc(100dvh - 160px); }
   .customer-bar { flex-wrap:wrap; gap:6px; padding:8px 12px; }
   .customer-bar select, .customer-bar input { flex:1 1 130px !important; max-width:100% !important; }
   .addon-section { flex-direction:column; gap:10px; padding:8px 12px; }

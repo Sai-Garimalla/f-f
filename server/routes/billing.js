@@ -105,11 +105,11 @@ async function buildCustomerReceipt(bill, items, settings) {
   r += 'Date     : ' + new Date(bill.created_at).toLocaleDateString('en-IN') + LF;
   r += 'Time     : ' + new Date(bill.created_at).toLocaleTimeString('en-IN') + LF;
   r += SLINE + LF;
-  r += 'TOKEN    : ' + LARGE + BOLD_ON + String(bill.token_number) + NORMAL + BOLD_OFF + LF;
-  r += 'TYPE     : ' + LARGE + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
+  r += 'TOKEN    : ' + DBL_HT + BOLD_ON + String(bill.token_number) + NORMAL + BOLD_OFF + LF;
+  r += 'TYPE     : ' + DBL_HT + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
   if (bill.customer_name)  r += 'Customer : ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
-  if (bill.customer_phone) r += 'PHONE    : ' + LARGE + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
-  if (bill.delivery_address) r += 'DEST     : ' + LARGE + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
+  if (bill.customer_phone) r += 'Phone    : ' + DBL_HT + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
+  if (bill.delivery_address) r += 'Dest     : ' + DBL_HT + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
   r += SLINE + LF;
 
   // Items header: ITEM(24) QTY(4) PRICE(9) AMT(11) = 48
@@ -145,24 +145,24 @@ async function buildCustomerReceipt(bill, items, settings) {
 
 // ── KOT (Kitchen Order Ticket) ──
 async function buildKOT(bill, items, settings) {
-  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, LARGE, NORMAL, CUT, DLINE, pad, padL } = ep();
+  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, DBL_HT, NORMAL, CUT, DLINE, pad, padL } = ep();
 
   let k = INIT + LEFT;
   k += CENTER + BOLD_ON + (settings.restaurant_name || 'Fire & Flavour') + BOLD_OFF + LF;
   k += CENTER + BOLD_ON + '*** KITCHEN ORDER ***' + BOLD_OFF + LF;
   k += CENTER + DLINE + LF;
   k += CENTER + 'TOKEN' + LF;
-  k += CENTER + LARGE + BOLD_ON + String(bill.token_number) + BOLD_OFF + NORMAL + LF;
+  k += CENTER + DBL_HT + BOLD_ON + String(bill.token_number) + BOLD_OFF + NORMAL + LF;
   k += LEFT + DLINE + LF;
 
   const dateStr = 'Date: ' + new Date(bill.created_at).toLocaleDateString('en-IN');
   const timeStr = 'Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN');
   k += dateStr.padEnd(24).slice(0, 24) + timeStr.padEnd(24).slice(0, 24) + LF;
   k += 'Bill     : ' + bill.bill_number + LF;
-  k += 'TYPE     : ' + LARGE + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
+  k += 'Type     : ' + DBL_HT + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
   if (bill.customer_name)  k += 'Name     : ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
-  if (bill.customer_phone) k += 'PHONE    : ' + LARGE + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
-  if (bill.delivery_address) k += 'DEST     : ' + LARGE + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
+  if (bill.customer_phone) k += 'Phone    : ' + DBL_HT + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
+  if (bill.delivery_address) k += 'Dest     : ' + DBL_HT + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
   if (bill.cashier_name) k += 'Taken By : ' + bill.cashier_name + LF;
   k += DLINE + LF;
   // Header: ITEM(41) QTY(7) = 48
@@ -179,7 +179,7 @@ async function buildKOT(bill, items, settings) {
 
 // ── Counter Checklist (full details + checkboxes) ──
 async function buildCounterChecklist(bill, items, settings) {
-  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, LARGE, NORMAL, CUT, DLINE, SLINE, pad, padL } = ep();
+  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, DBL_HT, NORMAL, CUT, DLINE, SLINE, pad, padL } = ep();
 
   let c = INIT + LEFT;
   c += CENTER + BOLD_ON + (settings.restaurant_name || 'Fire & Flavour') + BOLD_OFF + LF;
@@ -194,11 +194,11 @@ async function buildCounterChecklist(bill, items, settings) {
   const timeStr = 'Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN');
   c += dateStr.padEnd(24).slice(0, 24) + timeStr.padEnd(24).slice(0, 24) + LF;
   c += DLINE + LF;
-  c += 'TOKEN    : ' + LARGE + BOLD_ON + String(bill.token_number) + NORMAL + BOLD_OFF + LF;
-  c += 'TYPE     : ' + LARGE + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
+  c += 'TOKEN    : ' + DBL_HT + BOLD_ON + String(bill.token_number) + NORMAL + BOLD_OFF + LF;
+  c += 'Type     : ' + DBL_HT + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
   if (bill.customer_name)    c += 'Customer : ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
-  if (bill.customer_phone)   c += 'PHONE    : ' + LARGE + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
-  if (bill.delivery_address) c += 'DEST     : ' + LARGE + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
+  if (bill.customer_phone)   c += 'Phone    : ' + DBL_HT + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
+  if (bill.delivery_address) c += 'Dest     : ' + DBL_HT + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
   if (bill.cashier_name) c += 'Taken By : ' + bill.cashier_name + LF;
   c += DLINE + LF;
 

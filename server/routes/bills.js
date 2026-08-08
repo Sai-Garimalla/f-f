@@ -23,17 +23,32 @@ router.get('/customer/:phone', async (req, res) => {
       [phone]
     );
 
-    // Total spent by this customer
+    // Total spent + visit count
     const [totals] = await pool.execute(
       "SELECT COALESCE(SUM(grand_total),0) AS total_spent, COUNT(*) AS visit_count FROM bills WHERE customer_phone=? AND status='completed'",
       [phone]
     );
 
+    // Per-item aggregates: what this customer orders and how much
+    const [itemHistory] = await pool.execute(
+      `SELECT bi.item_name,
+              SUM(bi.quantity)  AS total_qty,
+              SUM(bi.line_total) AS total_spent,
+              COUNT(DISTINCT bi.bill_id) AS order_count
+       FROM bill_items bi
+       JOIN bills b ON bi.bill_id = b.bill_id
+       WHERE b.customer_phone=? AND b.status='completed'
+       GROUP BY bi.item_name
+       ORDER BY total_qty DESC`,
+      [phone]
+    );
+
     res.json({
       customer_name,
-      total_spent: parseFloat(totals[0].total_spent),
-      visit_count: parseInt(totals[0].visit_count),
-      history: orders
+      total_spent:  parseFloat(totals[0].total_spent),
+      visit_count:  parseInt(totals[0].visit_count),
+      history:      orders,
+      item_history: itemHistory
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

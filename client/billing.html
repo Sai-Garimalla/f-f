@@ -6,8 +6,8 @@
 <title>New Bill — Fire & Flavour</title>
 <link rel="stylesheet" href="css/style.css">
 <style>
-  .page-body { padding: 14px 16px; }
-  .billing-layout { height: calc(100vh - 105px); }
+  .page-body { padding: 0; }
+  .billing-layout { height: calc(100vh - 160px); }
   /* Topbar */
   .billing-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; background:#FFF8F0; border-bottom:2px solid #FFCC80; flex-wrap:wrap; }
   .topbar-left { display:flex; align-items:center; gap:10px; }
@@ -17,6 +17,11 @@
   .topbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .topbar-phone { max-width:145px; padding:6px 10px; }
   .topbar-name  { max-width:145px; padding:6px 10px; }
+  .phone-required-star {
+    position:absolute; top:4px; right:6px;
+    color:#C62828; font-weight:900; font-size:16px;
+    display:none; pointer-events:none; line-height:1;
+  }
   /* Order type pills */
   .ot-pills { display:flex; gap:4px; }
   .ot-pill { padding:5px 12px; border-radius:20px; font-size:11px; font-weight:700; border:1px solid #FFCC80; background:#fff; color:#8D6E63; cursor:pointer; transition:all .15s; white-space:nowrap; }
@@ -31,15 +36,17 @@
   .np-btn { padding:12px; font-size:18px; font-weight:700; border-radius:8px; border:1px solid #FFCC80; background:#fff; color:#3E2000; cursor:pointer; }
   .np-btn:active { background:#FF8F00; color:#fff; }
   @media(max-width:768px) {
-    .billing-topbar { flex-direction:column; align-items:stretch; gap:10px; }
+    .billing-topbar { flex-direction:column; align-items:stretch; gap:6px; padding:8px 12px; }
     .topbar-center { margin-top:0; justify-content:flex-start; overflow-x:auto; padding-bottom:4px; }
-    .topbar-right { margin-top:0; justify-content:space-between; }
+    .topbar-right { margin-top:0; flex-wrap:wrap; gap:6px; }
+    .topbar-right > div { width:100%; }
+    .topbar-phone, .topbar-name { max-width:100% !important; }
     .customer-bar { flex-direction:column; align-items:stretch; }
     .customer-bar input { max-width:100% !important; }
     .manual-row form { flex-wrap:wrap; }
     .manual-row input { flex:1 1 45%; }
     .manual-row button { flex:1 1 100%; }
-    .bill-panel { padding-bottom:80px; /* space for FAB */ }
+    .bill-panel { padding-bottom:80px; }
   }
   .customer-bar input { flex: 1; max-width: 220px; }
   .addon-toggles { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
@@ -123,8 +130,11 @@
           <input type="text" id="order-location-other" class="form-control" placeholder="Specify" style="display:none; max-width:90px; padding:6px 10px;">
         </div>
         <div style="display:flex; gap:6px; flex:1;">
-          <input type="tel" id="customer-phone" class="topbar-phone form-control" placeholder="📞 Phone" oninput="handlePhoneInput(this.value)">
-          <input type="text" id="customer-name" class="topbar-name form-control" placeholder="👤 Customer Name">
+          <div style="position:relative;flex:1;">
+            <input type="tel" id="customer-phone" class="topbar-phone form-control" placeholder="📞 Phone" oninput="handlePhoneInput(this.value)" style="width:100%;">
+            <span id="phone-required-star" class="phone-required-star" title="Required for this order type">*</span>
+          </div>
+          <input type="text" id="customer-name" class="topbar-name form-control" placeholder="👤 Name" style="flex:1;">
           <button id="cust-history-btn" class="btn btn-secondary btn-sm" style="display:none; padding: 0 10px;" onclick="showCustomerHistory()" title="View History">📜</button>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="holdBill()">⏸ Hold</button>
@@ -353,6 +363,17 @@ document.querySelectorAll('.ot-pill').forEach(pill => {
       deliveryEnabled = true;
       document.getElementById('delivery-opts').style.display = 'flex';
       updateTotals();
+    }
+
+    // Phone mandatory indicator
+    const star = document.getElementById('phone-required-star');
+    const phoneEl = document.getElementById('customer-phone');
+    if (type !== 'Dine-in') {
+      star.style.display = 'inline';
+      phoneEl.placeholder = '📞 Phone (required)';
+    } else {
+      star.style.display = 'none';
+      phoneEl.placeholder = '📞 Phone (optional)';
     }
   });
 });
@@ -933,6 +954,16 @@ async function confirmSaveAndPrint() { await confirmPrint('all'); }
 
 async function saveBill(print=true) {
   if (!billItems.length) { showToast('Add items before saving.', 'warning'); return; }
+  
+  // Phone is mandatory for Takeaway & Delivery
+  const orderTypeVal = document.getElementById('order-type').value;
+  const phoneVal = document.getElementById('customer-phone').value.trim();
+  if (orderTypeVal !== 'Dine-in' && !phoneVal) {
+    showToast(`📞 Phone number is required for ${orderTypeVal} orders`, 'warning');
+    document.getElementById('customer-phone').focus();
+    return;
+  }
+  
   const btn = document.getElementById('print-btn');
   btn.disabled = true; btn.textContent = '⏳ Processing…';
   try {
@@ -1017,10 +1048,10 @@ async function reprintDocument(type) {
       const skipped = pr.filter(p => p.skipped);
       const failed  = pr.filter(p => !p.success && !p.skipped && !p.queued);
       const ok      = pr.filter(p => p.success);
-      if (queued.length)  showToast(`🖨️ ${queued.map(p=>p.type.toUpperCase()).join(' & ')}: Sent to queue`, 'success');
-      if (ok.length)      showToast(`✅ ${ok.map(p=>p.type.toUpperCase()).join(' & ')} printed`, 'success');
-      if (skipped.length) showToast(`⚠️ ${skipped.map(p=>p.type.toUpperCase()).join(' & ')}: No IP set`, 'warning');
-      if (failed.length)  showToast(`❌ ${failed.map(p=>p.type.toUpperCase()+': '+(p.error||'error')).join(' | ')}`, 'error');
+      if (queued.length)  showToast(`🖨️ ${queued.map(p=>p.type.toUpperCase()).join(' & ')}: Queued — ESP32 will print when online`, 'success');
+      if (ok.length)      showToast(`✅ ${ok.map(p=>p.type.toUpperCase()).join(' & ')} printed successfully`, 'success');
+      if (skipped.length) showToast(`⚠️ ${skipped.map(p=>p.type.toUpperCase()).join(' & ')}: Printer IP not set in Settings`, 'warning');
+      if (failed.length)  showToast(`📡 Direct print failed — ESP32 may be off. Will retry via MQTT queue`, 'warning');
     }
   } catch (e) {
     showToast('❌ Print error: ' + e.message, 'error');

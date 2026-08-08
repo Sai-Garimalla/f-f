@@ -225,31 +225,24 @@ async function viewBill(billId) {
 
 async function reprint(billId, type) {
   const statusEl = document.getElementById('modal-print-status');
-  statusEl.innerHTML = `<div style="padding:6px 10px;font-size:12px;color:var(--text-muted)">⏳ Sending to printer…</div>`;
+  statusEl.innerHTML = `<div style="padding:8px 12px;font-size:12px;color:#8D6E63;background:#FFF8F0;border-radius:8px;">⏳ Sending to printer…</div>`;
   try {
     const data = await apiFetch(`/billing/${billId}/reprint`, { method: 'POST', body: JSON.stringify({ type }) });
-    if (data.receipt_b64 || data.kot_b64) {
-      let combinedB64 = type === 'receipt' ? data.receipt_b64 : (type === 'kot' ? data.kot_b64 : (data.receipt_b64 || data.kot_b64));
-      if (/android/i.test(navigator.userAgent)) {
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = `rawbt:base64,${combinedB64}`;
-        document.body.appendChild(iframe);
-        setTimeout(() => iframe.remove(), 2000);
-      }
-    }
     const pr = data.print_results || [];
     if (!pr.length) {
-      statusEl.innerHTML = `<div style="background:#2a2a00;border:1px solid #ffcc00;border-radius:8px;padding:8px 12px;font-size:12px;color:#ffcc00">⚠️ No printer configured. Go to Settings to set printer IP.</div>`;
+      statusEl.innerHTML = `<div style="background:#FFF3E0;border:1px solid #FFCC80;border-radius:8px;padding:8px 12px;font-size:12px;color:#8D6E63">⚠️ No printer configured. Go to Settings to add printer IP.</div>`;
     } else {
       statusEl.innerHTML = pr.map(p => {
-        if (p.success) return `<div style="background:#0a2a0a;border:1px solid var(--success);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--success);margin-bottom:4px">✅ ${p.type.toUpperCase()} printed successfully</div>`;
-        if (p.skipped) return `<div style="background:#2a2a00;border:1px solid #ffcc00;border-radius:8px;padding:8px 10px;font-size:12px;color:#ffcc00;margin-bottom:4px">⚠️ ${p.type.toUpperCase()}: ${p.reason || 'Printer not configured in Settings'}</div>`;
-        return `<div style="background:#2a0a0a;border:1px solid var(--danger);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--danger);margin-bottom:4px">❌ ${p.type.toUpperCase()} FAILED: ${p.error || 'Connection error — check printer IP & power'}</div>`;
+        const t = (p.type || '').toUpperCase();
+        if (p.queued)  return `<div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:8px 12px;font-size:12px;color:#1565C0;margin-bottom:4px">🖨️ ${t}: Queued — ESP32 will print when connected</div>`;
+        if (p.success) return `<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:8px 12px;font-size:12px;color:#2E7D32;margin-bottom:4px">✅ ${t}: Printed successfully</div>`;
+        if (p.skipped) return `<div style="background:#FFF8DC;border:1px solid #F9A825;border-radius:8px;padding:8px 12px;font-size:12px;color:#F57F17;margin-bottom:4px">⚠️ ${t}: ${p.reason || 'Printer IP not configured in Settings'}</div>`;
+        // Connection error — might just mean ESP32 is off, print may have been queued via MQTT
+        return `<div style="background:#FFF3E0;border:1px solid #FFCC80;border-radius:8px;padding:8px 12px;font-size:12px;color:#8D6E63;margin-bottom:4px">📡 ${t}: Direct TCP failed — if ESP32 is ON it should print via MQTT queue. Check ESP32 power &amp; WiFi.</div>`;
       }).join('');
     }
   } catch(e) {
-    statusEl.innerHTML = `<div style="background:#2a0a0a;border:1px solid var(--danger);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--danger)">❌ Error: ${e.message}</div>`;
+    statusEl.innerHTML = `<div style="background:#FFEBEE;border:1px solid #EF9A9A;border-radius:8px;padding:8px 12px;font-size:12px;color:#C62828">❌ Error: ${e.message}</div>`;
   }
 }
 

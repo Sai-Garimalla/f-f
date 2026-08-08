@@ -59,7 +59,7 @@ function generateBillNumber() {
 // Connect to HiveMQ Cloud
 let mqttClient = null;
 if (process.env.MQTT_HOST) {
-  mqttClient = mqtt.connect(\`mqtts://\${process.env.MQTT_HOST}\`, {
+  mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
     username: process.env.MQTT_USER,
     password: process.env.MQTT_PASS
   });
@@ -79,7 +79,7 @@ function printToPrinter(ip, port, data) {
     }
 
     // The topic routes to the specific local IP
-    const topic = \`restaurant/printer/\${ip}\`;
+    const topic = `restaurant/printer/${ip}`;
     
     // Publish raw binary data (ESC/POS Buffer) to MQTT
     mqttClient.publish(topic, data, { qos: 1 }, (err) => {

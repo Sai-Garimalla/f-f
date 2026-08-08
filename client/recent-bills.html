@@ -79,6 +79,7 @@
       <div class="modal-footer" style="flex-wrap: wrap; justify-content: center; padding: 14px 10px;">
         <button class="btn btn-secondary" style="flex:1; min-width: 100px; background:#FFEbee; color:#C62828; border-color:#EF9A9A" id="cancel-bill-btn" onclick="cancelBill()">🚫 Cancel</button>
         <button class="btn btn-secondary" style="flex:1; min-width: 100px;" onclick="closeModal()">✕ Close</button>
+        <button class="btn btn-secondary" style="flex:1; min-width: 100px;" id="edit-bill-btn">✏️ Edit</button>
         <button class="btn btn-secondary" style="flex:1; min-width: 100px;" id="reprint-receipt-btn">🖨 Receipt</button>
         <button class="btn btn-secondary" style="flex:1; min-width: 100px;" id="reprint-kot-btn">🍳 KOT</button>
         <button class="btn btn-primary" style="flex:1 1 100%;" id="reprint-both-btn">🖨 Print Both</button>
@@ -214,21 +215,11 @@ async function viewBill(billId) {
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border);margin-top:4px;font-size:15px;font-weight:800;color:var(--flame-light)"><span>GRAND TOTAL</span><span>${formatCurrency(grand)}</span></div>
       </div>`;
 
-    // Reprint buttons
+    // Wire up buttons
     document.getElementById('reprint-receipt-btn').onclick = () => reprint(billId, 'receipt');
     document.getElementById('reprint-kot-btn').onclick = () => reprint(billId, 'kot');
     document.getElementById('reprint-both-btn').onclick = () => reprint(billId, 'both');
-    
-    // Add Edit button
-    let editBtn = document.getElementById('edit-bill-btn');
-    if (!editBtn) {
-      editBtn = document.createElement('button');
-      editBtn.id = 'edit-bill-btn';
-      editBtn.className = 'btn btn-secondary';
-      editBtn.innerHTML = '✏️ Edit Bill';
-      document.querySelector('.modal-actions').prepend(editBtn);
-    }
-    editBtn.onclick = () => window.location.href = `/billing.html?edit_bill=${billId}`;
+    document.getElementById('edit-bill-btn').onclick = () => window.location.href = `/billing.html?edit_bill=${billId}`;
 
   } catch(e) {
     content.innerHTML = `<p style="color:var(--danger)">${e.message}</p>`;

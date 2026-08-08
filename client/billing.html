@@ -105,6 +105,9 @@
       <div class="topbar-left">
         <span class="topbar-title">🧾 New Bill</span>
         <span class="topbar-token" id="token-display">—</span>
+        <select id="drafts-select" class="form-control" style="display:none; max-width:160px; padding:5px 8px; font-size:12px;" onchange="restoreSelectedDraft(this)">
+          <option value="">📥 Held Orders…</option>
+        </select>
       </div>
       <div class="topbar-center">
         <div class="ot-pills" id="order-type-pills">
@@ -714,8 +717,8 @@ async function deleteDraft(billId, btnEl) {
   try {
     await apiFetch(`/bills/${billId}/cancel`, { method: 'POST' });
     showToast('Draft discarded', 'success');
-    btnEl.closest('.modal').parentElement.classList.remove('open');
-    showDrafts(); // reload list
+    btnEl.closest('.modal-overlay').classList.remove('open');
+    checkDraftsOnLoad(); // refresh dropdown
   } catch(e) {
     showToast('Error discarding draft: ' + e.message, 'error');
   }
@@ -1075,15 +1078,7 @@ async function saveBill(print=true, status='completed') {
       document.getElementById('customer-phone').value = '';
       document.getElementById('customer-name').value  = '';
       renderBill();
-      
-      // Ensure drafts button is visible
-      if (!document.getElementById('drafts-btn')) {
-        const dBtn = document.createElement('button');
-        dBtn.id = 'drafts-btn'; dBtn.className = 'btn btn-secondary btn-sm';
-        dBtn.textContent = '📥 Drafts';
-        dBtn.onclick = showDrafts;
-        document.querySelector('.topbar-left').appendChild(dBtn);
-      }
+      checkDraftsOnLoad(); // refresh dropdown
       return;
     }
 
@@ -1235,18 +1230,32 @@ if (urlParams.has('edit_bill')) {
 
 async function checkDraftsOnLoad() {
   try {
-    const data = await apiFetch('/bills?status=draft&limit=1');
+    const data = await apiFetch('/bills?status=draft&limit=50');
+    const sel = document.getElementById('drafts-select');
     if (data.bills && data.bills.length > 0) {
-      if (!document.getElementById('drafts-btn')) {
-        const dBtn = document.createElement('button');
-        dBtn.id = 'drafts-btn'; dBtn.className = 'btn btn-secondary btn-sm';
-        dBtn.textContent = '📥 Drafts';
-        dBtn.onclick = showDrafts;
-        document.querySelector('.topbar-left').appendChild(dBtn);
-      }
+      sel.style.display = '';
+      // Clear old options (keep placeholder)
+      while (sel.options.length > 1) sel.remove(1);
+      data.bills.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.bill_id;
+        const label = `#${d.token_number} ${d.customer_phone || d.order_type || ''}`;
+        opt.textContent = label.length > 22 ? label.slice(0, 22) + '…' : label;
+        sel.appendChild(opt);
+      });
+    } else {
+      sel.style.display = 'none';
     }
   } catch(e) {}
 }
+
+async function restoreSelectedDraft(sel) {
+  const id = sel.value;
+  if (!id) return;
+  sel.value = ''; // reset dropdown
+  await loadEditBill(id);
+}
+
 checkDraftsOnLoad();
 
 loadMenu();

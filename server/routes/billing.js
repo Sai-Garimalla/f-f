@@ -1,24 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const net = require('net');
 const mqtt = require('mqtt');
 const { pool } = require('../db/connection');
 const { authenticateToken } = require('../middleware/auth');
 router.use(authenticateToken);
 
-// Generate next token number
+// ── Generate next token number ──
 async function getNextToken() {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-
     const [settings] = await conn.execute(
       "SELECT value FROM settings WHERE key_name = 'token_format'"
     );
     const format = settings[0]?.value || 'daily';
-
     const today = new Date().toISOString().split('T')[0];
-
     if (format === 'daily') {
       await conn.execute(
         'INSERT INTO token_counter (counter_date, last_token) VALUES (?, 1) ON DUPLICATE KEY UPDATE last_token = last_token + 1',
@@ -30,7 +26,6 @@ async function getNextToken() {
       await conn.commit();
       return counter[0].last_token;
     } else {
-      // Continuous: use a fixed date key '0000-01-01'
       await conn.execute(
         "INSERT INTO token_counter (counter_date, last_token) VALUES ('0000-01-01', 1) ON DUPLICATE KEY UPDATE last_token = last_token + 1"
       );
@@ -48,15 +43,14 @@ async function getNextToken() {
   }
 }
 
-// Generate bill number
-function generateBillNumber() {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const timeStr = now.getTime().toString().slice(-6);
-  return `FF-${dateStr}-${timeStr}`;
+// ── Bill number: YYYYMMDD-TOKEN format ──
+function generateBillNumber(date, token) {
+  const d = date || new Date();
+  const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
+  return `${dateStr}-${String(token).padStart(3, '0')}`;
 }
 
-// Connect to HiveMQ Cloud
+// ── MQTT cloud print bridge ──
 let mqttClient = null;
 if (process.env.MQTT_HOST) {
   mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
@@ -67,144 +61,191 @@ if (process.env.MQTT_HOST) {
   mqttClient.on('error', (err) => console.error('❌ HiveMQ Error:', err));
 }
 
-// ESC/POS printer function (MQTT IoT Bridge)
 function printToPrinter(ip, port, data) {
   return new Promise((resolve, reject) => {
     if (!ip) return resolve({ skipped: true, reason: 'No printer IP configured' });
-    
-    // If MQTT is not configured or connected, fall back or skip
     if (!mqttClient || !mqttClient.connected) {
-       console.log('⚠️ MQTT not connected, skipping print job to ' + ip);
-       return resolve({ skipped: true, reason: 'MQTT disconnected' });
+      return resolve({ skipped: true, reason: 'MQTT disconnected — ESP32 must be powered on' });
     }
-
-    // The topic routes to the specific local IP
-    const topic = `restaurant/printer/${ip}`;
-    
-    // Publish raw binary data (ESC/POS Buffer) to MQTT
-    mqttClient.publish(topic, data, { qos: 1 }, (err) => {
+    mqttClient.publish(`restaurant/printer/${ip}`, data, { qos: 1 }, (err) => {
       if (err) return reject(err);
-      resolve({ success: true, method: 'MQTT' });
+      resolve({ queued: true, method: 'MQTT', message: 'Sent to printer queue' });
     });
   });
 }
 
-// Build ESC/POS Customer Receipt
+// ── ESC/POS helper constants ──
+function ep() {
+  const ESC = '\x1B', GS = '\x1D', LF = '\n';
+  return {
+    LF, INIT: ESC+'@', BOLD_ON: ESC+'E\x01', BOLD_OFF: ESC+'E\x00',
+    CENTER: ESC+'a\x01', LEFT: ESC+'a\x00',
+    DBL_HT: GS+'!\x11', LARGE: GS+'!\x33', NORMAL: GS+'!\x00',
+    CUT: GS+'V\x41\x03',
+    DLINE: '='.repeat(48), SLINE: '-'.repeat(48),
+    pad:  (s, l) => String(s == null ? '' : s).padEnd(l).slice(0, l),
+    padL: (s, l) => String(s == null ? '' : s).padStart(l).slice(-l),
+  };
+}
+
+// ── Customer Receipt (full details) ──
 async function buildCustomerReceipt(bill, items, settings) {
-  const ESC = '\x1B';
-  const GS = '\x1D';
-  const LF = '\n';
-  const INIT = ESC + '@';
-  const BOLD_ON = ESC + 'E' + '\x01';
-  const BOLD_OFF = ESC + 'E' + '\x00';
-  const CENTER = ESC + 'a' + '\x01';
-  const LEFT = ESC + 'a' + '\x00';
-  const DOUBLE_HEIGHT = GS + '!' + '\x11';
-  const NORMAL_SIZE = GS + '!' + '\x00';
-  const CUT = GS + 'V' + '\x41' + '\x03';
+  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, DBL_HT, LARGE, NORMAL, CUT, SLINE, pad, padL } = ep();
 
-  const pad = (str, len) => String(str).padEnd(len).slice(0, len);
-  const padLeft = (str, len) => String(str).padStart(len).slice(-len);
-  const line = '-'.repeat(48);
+  let r = INIT;
+  r += '\x1C\x70\x01\x00' + LF; // NV Logo if stored
+  r += CENTER + BOLD_ON + DBL_HT + (settings.restaurant_name || 'Fire & Flavour') + LF + NORMAL + BOLD_OFF;
+  if (settings.address) r += CENTER + settings.address + LF;
+  if (settings.phone)   r += CENTER + 'Ph: ' + settings.phone + LF;
+  r += LEFT + SLINE + LF;
+  r += CENTER + BOLD_ON + 'CUSTOMER RECEIPT' + BOLD_OFF + LF;
+  r += LEFT + SLINE + LF;
 
-  let receipt = INIT;
-  // Print NV Logo 1 (User must upload logo to NV memory via Windows tool)
-  receipt += '\x1C\x70\x01\x00' + LF; 
-  receipt += CENTER + BOLD_ON + DOUBLE_HEIGHT + (settings.restaurant_name || 'Fire & Flavour') + LF + NORMAL_SIZE + BOLD_OFF;
-  receipt += CENTER + (settings.address || '') + LF;
-  receipt += CENTER + 'Ph: ' + (settings.phone || '') + LF;
-  receipt += LEFT + line + LF;
-  receipt += BOLD_ON + 'CUSTOMER RECEIPT' + BOLD_OFF + LF;
-  receipt += 'Bill No : ' + bill.bill_number + LF;
-  receipt += 'Token   : ' + BOLD_ON + bill.token_number + BOLD_OFF + LF;
-  receipt += 'Date    : ' + new Date(bill.created_at).toLocaleDateString('en-IN') + LF;
-  receipt += 'Time    : ' + new Date(bill.created_at).toLocaleTimeString('en-IN') + LF;
-  receipt += 'Type    : ' + (bill.order_type || 'Dine-in') + LF;
-  if (bill.customer_phone) receipt += 'Phone   : ' + bill.customer_phone + LF;
-  receipt += line + LF;
-  receipt += BOLD_ON + pad('ITEM', 24) + padLeft('QTY', 4) + padLeft('PRICE', 9) + padLeft('AMT', 11) + LF + BOLD_OFF;
-  receipt += line + LF;
+  r += 'Bill No  : ' + bill.bill_number + LF;
+  r += 'Date     : ' + new Date(bill.created_at).toLocaleDateString('en-IN') + LF;
+  r += 'Time     : ' + new Date(bill.created_at).toLocaleTimeString('en-IN') + LF;
+  r += SLINE + LF;
+  r += 'TOKEN    : ' + LARGE + BOLD_ON + String(bill.token_number) + NORMAL + BOLD_OFF + LF;
+  r += 'TYPE     : ' + LARGE + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
+  if (bill.customer_name)  r += 'Customer : ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
+  if (bill.customer_phone) r += 'PHONE    : ' + LARGE + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
+  if (bill.delivery_address) r += 'DEST     : ' + LARGE + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
+  r += SLINE + LF;
+
+  // Items header: ITEM(24) QTY(4) PRICE(9) AMT(11) = 48
+  r += BOLD_ON + pad('ITEM', 24) + padL('QTY', 4) + padL('PRICE', 9) + padL('AMT', 11) + LF + BOLD_OFF;
+  r += SLINE + LF;
 
   for (const item of items) {
-    const name = pad(item.item_name, 24);
-    const qty = padLeft(item.quantity, 4);
-    const price = padLeft(parseFloat(item.unit_price).toFixed(2), 9);
-    const amt = padLeft(parseFloat(item.line_total).toFixed(2), 11);
-    receipt += name + qty + price + amt + LF;
+    r += pad(item.item_name, 24) + padL(item.quantity, 4) +
+         padL(parseFloat(item.unit_price).toFixed(2), 9) +
+         padL(parseFloat(item.line_total).toFixed(2), 11) + LF;
+    // If item name is long, wrap it
+    if (item.item_name.length > 24) {
+      r += pad('  ' + item.item_name.slice(24), 24) + LF;
+    }
   }
 
-  receipt += line + LF;
-  receipt += pad('Subtotal', 36) + padLeft(parseFloat(bill.subtotal).toFixed(2), 12) + LF;
-
+  r += SLINE + LF;
+  r += pad('Subtotal', 36) + padL(parseFloat(bill.subtotal).toFixed(2), 12) + LF;
   if (bill.delivery_enabled) {
-    receipt += pad('Delivery', 36) + padLeft(parseFloat(bill.delivery_charge).toFixed(2), 12) + LF;
+    r += pad('Delivery Charge', 36) + padL(parseFloat(bill.delivery_charge).toFixed(2), 12) + LF;
   }
-  if (bill.discount_enabled && bill.discount_amount > 0) {
-    const discLabel = `Discount (${bill.discount_type === 'percentage' ? bill.discount_value + '%' : 'Rs ' + bill.discount_value})`;
-    receipt += pad(discLabel, 36) + padLeft('-' + parseFloat(bill.discount_amount).toFixed(2), 12) + LF;
+  if (bill.discount_enabled && parseFloat(bill.discount_amount) > 0) {
+    const discLabel = `Discount (${bill.discount_type === 'percentage' ? bill.discount_value + '%' : 'Rs.' + bill.discount_value})`;
+    r += pad(discLabel, 36) + padL('-' + parseFloat(bill.discount_amount).toFixed(2), 12) + LF;
   }
-
-  receipt += line + LF;
-  receipt += BOLD_ON + pad('GRAND TOTAL', 36) + padLeft(parseFloat(bill.grand_total).toFixed(2), 12) + LF + BOLD_OFF;
-  receipt += line + LF;
-  receipt += CENTER + (settings.footer || 'Thank you! Visit again.') + LF;
-  receipt += LF + LF + LF;
-  receipt += CUT;
-
-  return Buffer.from(receipt, 'latin1');
+  r += SLINE + LF;
+  r += BOLD_ON + pad('GRAND TOTAL', 36) + padL(parseFloat(bill.grand_total).toFixed(2), 12) + LF + BOLD_OFF;
+  r += SLINE + LF;
+  r += CENTER + (settings.footer || 'Thank you! Visit again.') + LF;
+  r += LF + LF + LF + CUT;
+  return Buffer.from(r, 'latin1');
 }
 
-// Build ESC/POS Kitchen Order Ticket
+// ── KOT (Kitchen Order Ticket) ──
 async function buildKOT(bill, items, settings) {
-  const ESC = '\x1B';
-  const GS = '\x1D';
-  const LF = '\n';
-  const INIT = ESC + '@';
-  const BOLD_ON = ESC + 'E' + '\x01';
-  const BOLD_OFF = ESC + 'E' + '\x00';
-  const CENTER = ESC + 'a' + '\x01';
-  const LEFT = ESC + 'a' + '\x00';
-  const LARGE = GS + '!' + '\x33';
-  const NORMAL = GS + '!' + '\x00';
-  const CUT = GS + 'V' + '\x41' + '\x03';
-  const line = '='.repeat(32);
+  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, LARGE, NORMAL, CUT, DLINE, pad, padL } = ep();
 
-  let kot = INIT;
-  kot += CENTER + BOLD_ON + (settings.restaurant_name || 'Fire & Flavour') + BOLD_OFF + LF;
-  kot += CENTER + BOLD_ON + '*** KITCHEN ORDER ***' + BOLD_OFF + LF;
-  kot += CENTER + line + LF;
-  kot += CENTER + 'TOKEN' + LF;
-  kot += CENTER + LARGE + BOLD_ON + String(bill.token_number) + BOLD_OFF + NORMAL + LF;
-  kot += LEFT + line + LF;
-  kot += 'Date: ' + new Date(bill.created_at).toLocaleDateString('en-IN') + '  Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN') + LF;
-  kot += 'Type: ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
-  kot += line + LF;
-  kot += BOLD_ON + 'ITEM                         QTY' + LF + BOLD_OFF;
-  kot += line + LF;
+  let k = INIT + LEFT;
+  k += CENTER + BOLD_ON + (settings.restaurant_name || 'Fire & Flavour') + BOLD_OFF + LF;
+  k += CENTER + BOLD_ON + '*** KITCHEN ORDER ***' + BOLD_OFF + LF;
+  k += CENTER + DLINE + LF;
+  k += CENTER + 'TOKEN' + LF;
+  k += CENTER + LARGE + BOLD_ON + String(bill.token_number) + BOLD_OFF + NORMAL + LF;
+  k += LEFT + DLINE + LF;
+
+  const dateStr = 'Date: ' + new Date(bill.created_at).toLocaleDateString('en-IN');
+  const timeStr = 'Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN');
+  k += dateStr.padEnd(24).slice(0, 24) + timeStr.padEnd(24).slice(0, 24) + LF;
+  k += 'Bill     : ' + bill.bill_number + LF;
+  k += 'TYPE     : ' + LARGE + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
+  if (bill.customer_name)  k += 'Name     : ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
+  if (bill.customer_phone) k += 'PHONE    : ' + LARGE + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
+  if (bill.delivery_address) k += 'DEST     : ' + LARGE + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
+  if (bill.cashier_name) k += 'Taken By : ' + bill.cashier_name + LF;
+  k += DLINE + LF;
+  // Header: ITEM(41) QTY(7) = 48
+  k += BOLD_ON + 'ITEM'.padEnd(41) + 'QTY'.padStart(7) + LF + BOLD_OFF;
+  k += DLINE + LF;
 
   for (const item of items) {
-    const name = item.item_name.padEnd(25).slice(0, 25);
-    const qty = String(item.quantity).padStart(6);
-    kot += name + qty + LF;
+    k += item.item_name.padEnd(41).slice(0, 41) + String(item.quantity).padStart(7) + LF;
   }
 
-  kot += line + LF + LF + LF;
-  kot += CUT;
-
-  return Buffer.from(kot, 'latin1');
+  k += DLINE + LF + LF + LF + CUT;
+  return Buffer.from(k, 'latin1');
 }
 
-// Create bill
+// ── Counter Checklist (full details + checkboxes) ──
+async function buildCounterChecklist(bill, items, settings) {
+  const { LF, INIT, BOLD_ON, BOLD_OFF, CENTER, LEFT, LARGE, NORMAL, CUT, DLINE, SLINE, pad, padL } = ep();
+
+  let c = INIT + LEFT;
+  c += CENTER + BOLD_ON + (settings.restaurant_name || 'Fire & Flavour') + BOLD_OFF + LF;
+  if (settings.address) c += CENTER + settings.address + LF;
+  if (settings.phone)   c += CENTER + 'Ph: ' + settings.phone + LF;
+  c += CENTER + BOLD_ON + '*** COUNTER CHECKLIST ***' + BOLD_OFF + LF;
+  c += CENTER + 'Pack & Verify each item before dispatch' + LF;
+  c += DLINE + LF;
+
+  c += 'Bill No  : ' + bill.bill_number + LF;
+  const dateStr = 'Date: ' + new Date(bill.created_at).toLocaleDateString('en-IN');
+  const timeStr = 'Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN');
+  c += dateStr.padEnd(24).slice(0, 24) + timeStr.padEnd(24).slice(0, 24) + LF;
+  c += DLINE + LF;
+  c += 'TOKEN    : ' + LARGE + BOLD_ON + String(bill.token_number) + NORMAL + BOLD_OFF + LF;
+  c += 'TYPE     : ' + LARGE + BOLD_ON + (bill.order_type || 'Dine-in') + NORMAL + BOLD_OFF + LF;
+  if (bill.customer_name)    c += 'Customer : ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
+  if (bill.customer_phone)   c += 'PHONE    : ' + LARGE + BOLD_ON + bill.customer_phone + NORMAL + BOLD_OFF + LF;
+  if (bill.delivery_address) c += 'DEST     : ' + LARGE + BOLD_ON + bill.delivery_address + NORMAL + BOLD_OFF + LF;
+  if (bill.cashier_name) c += 'Taken By : ' + bill.cashier_name + LF;
+  c += DLINE + LF;
+
+  // Checklist header: [ ] ITEM(28) QTY(5) PRICE(11) = 48
+  c += BOLD_ON + '[ ] ' + pad('ITEM', 28) + padL('QTY', 5) + padL('AMOUNT', 11) + LF + BOLD_OFF;
+  c += SLINE + LF;
+
+  for (const item of items) {
+    const name  = pad(item.item_name, 28);
+    const qty   = padL(item.quantity, 5);
+    const price = padL(parseFloat(item.line_total).toFixed(2), 11);
+    c += '[ ] ' + name + qty + price + LF;
+    // Show unit price below if qty > 1
+    if (item.quantity > 1) {
+      c += '    @ Rs.' + parseFloat(item.unit_price).toFixed(2) + ' x ' + item.quantity + LF;
+    }
+    c += SLINE + LF;
+  }
+
+  c += DLINE + LF;
+  c += pad('Subtotal', 36) + padL(parseFloat(bill.subtotal).toFixed(2), 12) + LF;
+  if (bill.delivery_enabled) {
+    c += pad('Delivery Charge', 36) + padL(parseFloat(bill.delivery_charge).toFixed(2), 12) + LF;
+  }
+  if (bill.discount_enabled && parseFloat(bill.discount_amount) > 0) {
+    const discLabel = `Discount (${bill.discount_type === 'percentage' ? bill.discount_value + '%' : 'Rs.' + bill.discount_value})`;
+    c += pad(discLabel, 36) + padL('-' + parseFloat(bill.discount_amount).toFixed(2), 12) + LF;
+  }
+  c += DLINE + LF;
+  c += BOLD_ON + pad('GRAND TOTAL', 36) + padL(parseFloat(bill.grand_total).toFixed(2), 12) + LF + BOLD_OFF;
+  c += DLINE + LF;
+  c += 'Packed by: ____________  Checked by: ____________' + LF;
+  c += LF + LF + LF + CUT;
+  return Buffer.from(c, 'latin1');
+}
+
+// ── POST / — Create Bill ──
 router.post('/', async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
 
     const {
-      items, customer_phone, order_type,
+      items, customer_name, customer_phone, delivery_address, order_type,
       delivery_enabled, delivery_charge,
       discount_enabled, discount_type, discount_value, discount_amount,
-      subtotal, grand_total, status, token_number
+      subtotal, grand_total, status, token_number, print_intent
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -212,20 +253,27 @@ router.post('/', async (req, res) => {
     }
 
     const token = token_number || await getNextToken();
-    const billNumber = generateBillNumber();
     const now = new Date();
     const billStatus = status === 'draft' ? 'draft' : 'completed';
+    // Bill number: YYYYMMDD-TTT (date + zero-padded token)
+    const billNumber = generateBillNumber(now, token);
 
     const [billResult] = await conn.execute(
-      `INSERT INTO bills 
-       (bill_number, token_number, customer_phone, order_type, subtotal, delivery_enabled, delivery_charge,
-        discount_enabled, discount_type, discount_value, discount_amount, grand_total, created_by, created_at, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO bills
+       (bill_number, token_number, customer_name, customer_phone, order_type, delivery_address,
+        subtotal, delivery_enabled, delivery_charge,
+        discount_enabled, discount_type, discount_value, discount_amount,
+        grand_total, status, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        billNumber, token, customer_phone || null, order_type || 'Dine-in',
-        subtotal, delivery_enabled ? 1 : 0, delivery_charge || 0,
-        discount_enabled ? 1 : 0, discount_type || 'fixed', discount_value || 0, discount_amount || 0,
-        grand_total, req.user.id, now, billStatus
+        billNumber, token,
+        customer_name || null, customer_phone || null,
+        order_type || 'Dine-in', delivery_address || null,
+        subtotal,
+        delivery_enabled ? 1 : 0, delivery_charge || 0,
+        discount_enabled ? 1 : 0, discount_type || 'fixed',
+        discount_value || 0, discount_amount || 0,
+        grand_total, billStatus, req.user.id, now
       ]
     );
 
@@ -247,58 +295,57 @@ router.post('/', async (req, res) => {
 
     const bill = {
       bill_id: billId, bill_number: billNumber, token_number: token,
-      customer_phone: customer_phone || null, order_type: order_type || 'Dine-in',
+      customer_name: customer_name || null,
+      customer_phone: customer_phone || null,
+      order_type: order_type || 'Dine-in',
+      delivery_address: delivery_address || null,
       subtotal, delivery_enabled: delivery_enabled ? 1 : 0, delivery_charge: delivery_charge || 0,
       discount_enabled: discount_enabled ? 1 : 0, discount_type: discount_type || 'fixed',
       discount_value: discount_value || 0, discount_amount: discount_amount || 0,
-      grand_total, created_at: now
+      grand_total, created_at: now, cashier_name: req.user.full_name
     };
 
-    // Print
     let printResults = [];
-    let receiptB64 = null;
-    let kotB64 = null;
+    let receiptB64 = null, kotB64 = null, checklistB64 = null;
 
-    if (billStatus === 'completed') {
-      const autoPrintReceipt = settings.auto_print_receipt === '1';
-      const autoPrintKOT = settings.auto_print_kot === '1';
-
-      if (autoPrintReceipt) {
-        const receiptData = await buildCustomerReceipt(bill, items, settings);
-        receiptB64 = Buffer.from(receiptData, 'binary').toString('base64');
+    // Only auto-print if it's a completed bill AND print_intent !== false
+    if (billStatus === 'completed' && print_intent !== false) {
+      if (settings.auto_print_receipt === '1') {
+        const data = await buildCustomerReceipt(bill, items, settings);
+        receiptB64 = data.toString('base64');
         if (settings.customer_printer_ip) {
           try {
-            const result = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, receiptData);
-            printResults.push({ type: 'receipt', ...result });
-          } catch (e) {
-            printResults.push({ type: 'receipt', error: e.message });
-          }
+            const r = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, data);
+            printResults.push({ type: 'receipt', ...r });
+          } catch (e) { printResults.push({ type: 'receipt', error: e.message }); }
         }
       }
-
-      if (autoPrintKOT) {
-        const kotData = await buildKOT(bill, items, settings);
-        kotB64 = Buffer.from(kotData, 'binary').toString('base64');
+      if (settings.auto_print_kot === '1') {
+        const data = await buildKOT(bill, items, settings);
+        kotB64 = data.toString('base64');
         if (settings.kitchen_printer_ip) {
           try {
-            const result = await printToPrinter(settings.kitchen_printer_ip, settings.kitchen_printer_port, kotData);
-            printResults.push({ type: 'kot', ...result });
-          } catch (e) {
-            printResults.push({ type: 'kot', error: e.message });
-          }
+            const r = await printToPrinter(settings.kitchen_printer_ip, settings.kitchen_printer_port, data);
+            printResults.push({ type: 'kot', ...r });
+          } catch (e) { printResults.push({ type: 'kot', error: e.message }); }
         }
       }
-    } // End if completed
+      if (settings.auto_print_checklist === '1') {
+        const data = await buildCounterChecklist(bill, items, settings);
+        checklistB64 = data.toString('base64');
+        if (settings.customer_printer_ip) {
+          try {
+            const r = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, data);
+            printResults.push({ type: 'checklist', ...r });
+          } catch (e) { printResults.push({ type: 'checklist', error: e.message }); }
+        }
+      }
+    }
 
-    res.json({ 
-      success: true, 
-      bill_id: billId, 
-      bill_number: billNumber, 
-      token_number: token, 
-      print_results: printResults, 
-      status: billStatus,
-      receipt_b64: receiptB64,
-      kot_b64: kotB64
+    res.json({
+      success: true, bill_id: billId, bill_number: billNumber, token_number: token,
+      print_results: printResults, status: billStatus,
+      receipt_b64: receiptB64, kot_b64: kotB64, checklist_b64: checklistB64
     });
   } catch (err) {
     await conn.rollback();
@@ -308,14 +355,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Reprint specific document
+// ── POST /:billId/reprint ──
 router.post('/:billId/reprint', async (req, res) => {
   try {
-    const { type } = req.body; // 'receipt', 'kot', 'both'
-
+    const { type } = req.body; // 'receipt', 'kot', 'checklist', 'both'
     const [bills] = await pool.execute('SELECT * FROM bills WHERE bill_id = ?', [req.params.billId]);
     if (!bills.length) return res.status(404).json({ error: 'Bill not found.' });
-
     const [items] = await pool.execute('SELECT * FROM bill_items WHERE bill_id = ?', [req.params.billId]);
     const [settingsRows] = await pool.execute('SELECT key_name, value FROM settings');
     const settings = {};
@@ -323,36 +368,50 @@ router.post('/:billId/reprint', async (req, res) => {
 
     const bill = bills[0];
     let printResults = [];
-    let receiptB64 = null;
-    let kotB64 = null;
+    let receiptB64 = null, kotB64 = null, checklistB64 = null;
 
     if (type === 'receipt' || type === 'both') {
-      const receiptData = await buildCustomerReceipt(bill, items, settings);
-      receiptB64 = Buffer.from(receiptData, 'binary').toString('base64');
+      const data = await buildCustomerReceipt(bill, items, settings);
+      receiptB64 = data.toString('base64');
       if (settings.customer_printer_ip) {
         try {
-          const result = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, receiptData);
-          printResults.push({ type: 'receipt', ...result });
-        } catch (e) {
-          printResults.push({ type: 'receipt', error: e.message });
-        }
+          const r = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, data);
+          printResults.push({ type: 'receipt', ...r });
+        } catch (e) { printResults.push({ type: 'receipt', error: e.message }); }
       }
     }
-
     if (type === 'kot' || type === 'both') {
-      const kotData = await buildKOT(bill, items, settings);
-      kotB64 = Buffer.from(kotData, 'binary').toString('base64');
+      const data = await buildKOT(bill, items, settings);
+      kotB64 = data.toString('base64');
       if (settings.kitchen_printer_ip) {
         try {
-          const result = await printToPrinter(settings.kitchen_printer_ip, settings.kitchen_printer_port, kotData);
-          printResults.push({ type: 'kot', ...result });
-        } catch (e) {
-          printResults.push({ type: 'kot', error: e.message });
-        }
+          const r = await printToPrinter(settings.kitchen_printer_ip, settings.kitchen_printer_port, data);
+          printResults.push({ type: 'kot', ...r });
+        } catch (e) { printResults.push({ type: 'kot', error: e.message }); }
+      }
+    }
+    if (type === 'checklist' || type === 'both') {
+      const data = await buildCounterChecklist(bill, items, settings);
+      checklistB64 = data.toString('base64');
+      if (settings.customer_printer_ip) {
+        try {
+          const r = await printToPrinter(settings.customer_printer_ip, settings.customer_printer_port, data);
+          printResults.push({ type: 'checklist', ...r });
+        } catch (e) { printResults.push({ type: 'checklist', error: e.message }); }
       }
     }
 
-    res.json({ success: true, print_results: printResults, receipt_b64: receiptB64, kot_b64: kotB64 });
+    res.json({ success: true, print_results: printResults, receipt_b64: receiptB64, kot_b64: kotB64, checklist_b64: checklistB64 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /next-token ──
+router.get('/next-token', async (req, res) => {
+  try {
+    const token = await getNextToken();
+    res.json({ token_number: token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

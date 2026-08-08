@@ -13,13 +13,14 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * limit;
     const search = req.query.search || '';
     const date = req.query.date || '';
+    const status = req.query.status || 'completed'; // Filter by status
 
-    let where = 'WHERE 1=1';
-    const params = [];
+    let where = 'WHERE b.status = ?';
+    const params = [status];
 
     if (search) {
-      where += ' AND (b.bill_number LIKE ? OR b.customer_phone LIKE ? OR CAST(b.token_number AS CHAR) LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      where += ' AND (b.bill_number LIKE ? OR b.customer_phone LIKE ? OR b.customer_name LIKE ? OR CAST(b.token_number AS CHAR) LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
     if (date) {
       where += ' AND DATE(b.created_at) = ?';
@@ -60,6 +61,42 @@ router.get('/:billId', async (req, res) => {
     if (!bills.length) return res.status(404).json({ error: 'Bill not found.' });
     const [items] = await pool.execute('SELECT * FROM bill_items WHERE bill_id = ? ORDER BY id', [req.params.billId]);
     res.json({ bill: bills[0], items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cancel a bill
+router.post('/:billId/cancel', async (req, res) => {
+  try {
+    const [result] = await pool.execute(
+      "UPDATE bills SET status = 'cancelled' WHERE bill_id = ?",
+      [req.params.billId]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Bill not found' });
+    res.json({ success: true, message: 'Bill cancelled successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get customer history by phone
+router.get('/customer/:phone', async (req, res) => {
+  try {
+    // Get their name (most recent)
+    const [nameResult] = await pool.execute(
+      "SELECT customer_name FROM bills WHERE customer_phone = ? AND customer_name IS NOT NULL ORDER BY created_at DESC LIMIT 1",
+      [req.params.phone]
+    );
+    const customer_name = nameResult.length ? nameResult[0].customer_name : null;
+
+    // Get their last 10 completed orders
+    const [orders] = await pool.execute(
+      "SELECT bill_id, bill_number, created_at, grand_total, order_type FROM bills WHERE customer_phone = ? AND status = 'completed' ORDER BY created_at DESC LIMIT 10",
+      [req.params.phone]
+    );
+
+    res.json({ customer_name, history: orders });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

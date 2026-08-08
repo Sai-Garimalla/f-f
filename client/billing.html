@@ -8,156 +8,85 @@
 <style>
   .page-body { padding: 14px 16px; }
   .billing-layout { height: calc(100vh - 105px); }
-  /* EZO Topbar */
-  .billing-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  /* Topbar */
+  .billing-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; background:#FFF8F0; border-bottom:2px solid #FFCC80; flex-wrap:wrap; }
   .topbar-left { display:flex; align-items:center; gap:10px; }
-  .topbar-title { font-size:16px; font-weight:700; }
-  .topbar-token { font-size:20px; font-weight:800; color:var(--flame-light); min-width:30px; }
+  .topbar-title { font-size:16px; font-weight:700; color:#E65100; }
+  .topbar-token { font-size:20px; font-weight:800; color:#FF8F00; min-width:30px; }
   .topbar-center { display:flex; align-items:center; }
-  .topbar-right { display:flex; align-items:center; gap:8px; }
-  .topbar-phone { max-width:160px; padding:6px 10px; }
+  .topbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .topbar-phone { max-width:145px; padding:6px 10px; }
+  .topbar-name  { max-width:145px; padding:6px 10px; }
   /* Order type pills */
   .ot-pills { display:flex; gap:4px; }
-  .ot-pill { padding:5px 12px; border-radius:20px; font-size:11px; font-weight:700; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; transition:all .15s; white-space:nowrap; }
-  .ot-pill:hover { border-color:var(--flame); color:var(--flame-light); }
-  .ot-pill.active { background:var(--gradient); border-color:transparent; color:#fff; }
+  .ot-pill { padding:5px 12px; border-radius:20px; font-size:11px; font-weight:700; border:1px solid #FFCC80; background:#fff; color:#8D6E63; cursor:pointer; transition:all .15s; white-space:nowrap; }
+  .ot-pill:hover { border-color:#F57C00; color:#E65100; background:#FFF3E0; }
+  .ot-pill.active { background:linear-gradient(135deg,#E65100,#FF8F00); border-color:transparent; color:#fff; }
   /* Quick add */
-  .quick-add { padding:6px 14px; border-bottom:1px solid var(--border); background:rgba(245,124,0,0.04); }
+  .quick-add { padding:6px 14px; border-bottom:1px solid #FFE0B2; background:#FFFDE7; }
   .quick-add form { display:flex; gap:5px; }
   .qa-name { flex:2; }
   .qa-price { width:80px; }
   .qa-qty { width:50px; }
-  .np-btn { padding:12px; font-size:18px; font-weight:700; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; }
-  .np-btn:active { background:var(--flame-light); color:white; }
+  .np-btn { padding:12px; font-size:18px; font-weight:700; border-radius:8px; border:1px solid #FFCC80; background:#fff; color:#3E2000; cursor:pointer; }
+  .np-btn:active { background:#FF8F00; color:#fff; }
   @media(max-width:768px) {
-    .billing-topbar { flex-direction:column; align-items:stretch; }
-    .topbar-center { margin-top:8px; justify-content:center; }
-    .topbar-right { margin-top:8px; flex-wrap:wrap; justify-content:space-between; }
+    .billing-topbar { flex-direction:column; align-items:stretch; gap:10px; }
+    .topbar-center { margin-top:0; justify-content:flex-start; overflow-x:auto; padding-bottom:4px; }
+    .topbar-right { margin-top:0; justify-content:space-between; }
+    .customer-bar { flex-direction:column; align-items:stretch; }
+    .customer-bar input { max-width:100% !important; }
+    .manual-row form { flex-wrap:wrap; }
+    .manual-row input { flex:1 1 45%; }
+    .manual-row button { flex:1 1 100%; }
+    .bill-panel { padding-bottom:80px; /* space for FAB */ }
   }
   .customer-bar input { flex: 1; max-width: 220px; }
   .addon-toggles { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-  .addon-section { padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 20px; flex-wrap: wrap; align-items: center; background: var(--surface); }
+  .addon-section { padding: 8px 14px; border-bottom: 1px solid #FFE0B2; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; background: #FFF8F0; }
   .addon-group { display: flex; gap: 8px; align-items: center; }
-  .addon-label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
-  .del-btn { padding: 3px 10px; font-size: 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; color: var(--text); }
-  .del-btn.active { background: var(--flame); border-color: var(--flame); color: #fff; }
+  .addon-label { font-size: 11px; font-weight: 600; color: #8D6E63; }
+  .del-btn { padding: 3px 10px; font-size: 11px; background: #FFF3E0; border: 1px solid #FFCC80; border-radius: 5px; cursor: pointer; color: #3E2000; }
+  .del-btn.active { background: #F57C00; border-color: #F57C00; color: #fff; }
   .custom-del { width: 60px; }
   .discount-opts { display: flex; gap: 6px; align-items: center; }
-  .manual-row { padding: 6px 14px; border-bottom: 1px solid var(--border); background: rgba(245,124,0,0.05); }
+  .manual-row { padding: 6px 14px; border-bottom: 1px solid #FFE0B2; background: #FFFDE7; }
   .manual-row form { display: flex; gap: 6px; }
   .manual-row input { flex: 1; padding: 5px 8px; }
-  .bill-header { padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing:.5px; text-transform:uppercase; }
-  .empty-bill { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); gap: 8px; }
+  .bill-header { padding: 8px 14px; border-bottom: 1px solid #FFE0B2; display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: #8D6E63; letter-spacing:.5px; text-transform:uppercase; }
+  .empty-bill { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #BCAAA4; gap: 8px; }
   .empty-bill .big-icon { font-size: 40px; }
 
-  /* ── Professional Cart Item Row ── */
+  /* ── Cart Item Row ── */
   .cart-item {
-    display: flex;
-    flex-direction: column;
-    padding: 10px 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    gap: 7px;
-    transition: background .15s;
+    display: flex; flex-direction: column;
+    padding: 10px 14px; border-bottom: 1px solid #FFE0B2;
+    gap: 7px; transition: background .15s;
   }
-  .cart-item:hover { background: rgba(255,255,255,0.025); }
-  .cart-item-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-  }
+  .cart-item:hover { background: #FFFDE7; }
+  .cart-item-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   .cart-item-info { flex: 1; min-width: 0; }
-  .cart-item-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.3;
-  }
-  .cart-item-code {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 2px;
-  }
-  .cart-item-total {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--flame-light);
-    white-space: nowrap;
-    padding-top: 1px;
-  }
-  .cart-item-bottom {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .cart-qty-ctrl {
-    display: flex;
-    align-items: center;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .cart-qty-btn {
-    width: 32px;
-    height: 30px;
-    border: none;
-    background: none;
-    color: var(--text);
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background .15s;
-  }
-  .cart-qty-btn:hover { background: rgba(245,124,0,0.2); color: var(--flame-light); }
-  .cart-qty-val {
-    min-width: 32px;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 700;
-    border-left: 1px solid var(--border);
-    border-right: 1px solid var(--border);
-    padding: 0 4px;
-    line-height: 30px;
-  }
-  .cart-price-input {
-    width: 72px;
-    height: 30px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 0 8px;
-    color: var(--text);
-    font-size: 12px;
-    text-align: right;
-    font-family: inherit;
-  }
-  .cart-price-input:focus { outline: none; border-color: var(--flame); }
-  .cart-price-label { font-size: 10px; color: var(--text-muted); }
-  .cart-remove-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    border: 1px solid rgba(229,57,53,0.3);
-    background: rgba(229,57,53,0.08);
-    color: #EF9A9A;
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all .15s;
-  }
-  .cart-remove-btn:hover { background: rgba(229,57,53,0.25); color: #fff; border-color: var(--danger); }
-  .cart-unit-price { font-size: 11px; color: var(--text-muted); }
-</style>
+  .cart-item-name { font-size: 13px; font-weight: 600; color: #3E2000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+  .cart-item-code { font-size: 10px; color: #8D6E63; margin-top: 2px; }
+  .cart-item-total { font-size: 14px; font-weight: 700; color: #E65100; white-space: nowrap; padding-top: 1px; }
+  .cart-item-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cart-qty-ctrl { display: flex; align-items: center; background: #FFF3E0; border: 1px solid #FFCC80; border-radius: 8px; overflow: hidden; }
+  .cart-qty-btn { width: 32px; height: 30px; border: none; background: none; color: #3E2000; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s; }
+  .cart-qty-btn:hover { background: #FFCC80; color: #E65100; }
+  .cart-qty-val { min-width: 32px; text-align: center; font-size: 13px; font-weight: 700; border-left: 1px solid #FFCC80; border-right: 1px solid #FFCC80; padding: 0 4px; line-height: 30px; color: #3E2000; }
+  .cart-price-input { width: 72px; height: 30px; background: #FFFDE7; border: 1px solid #FFCC80; border-radius: 7px; padding: 0 8px; color: #3E2000; font-size: 12px; text-align: right; font-family: inherit; }
+  .cart-price-input:focus { outline: none; border-color: #F57C00; }
+  .cart-price-label { font-size: 10px; color: #8D6E63; }
+  .cart-remove-btn { width: 28px; height: 28px; border-radius: 7px; border: 1px solid rgba(198,40,40,0.25); background: rgba(198,40,40,0.07); color: #C62828; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+  .cart-remove-btn:hover { background: rgba(198,40,40,0.18); border-color: #C62828; }
+  .cart-unit-price { font-size: 11px; color: #8D6E63; }
+  /* Preview tabs */
+  .prev-tabs { display:flex; border-bottom:2px solid #FFCC80; background:#FFF8F0; }
+  .prev-tab { flex:1; padding:10px 6px; font-size:12px; font-weight:700; border:none; background:none; color:#8D6E63; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .15s; }
+  .prev-tab.active { color:#E65100; border-bottom-color:#E65100; background:#fff; }
+  .prev-content { display:none; }
+  .prev-content.active { display:block; }
+
 </head>
 <body>
 <div class="app-shell">
@@ -193,7 +122,11 @@
           </select>
           <input type="text" id="order-location-other" class="form-control" placeholder="Specify" style="display:none; max-width:90px; padding:6px 10px;">
         </div>
-        <input type="tel" id="customer-phone" class="topbar-phone form-control" placeholder="📞 Phone">
+        <div style="display:flex; gap:6px; flex:1;">
+          <input type="tel" id="customer-phone" class="topbar-phone form-control" placeholder="📞 Phone" oninput="handlePhoneInput(this.value)">
+          <input type="text" id="customer-name" class="topbar-name form-control" placeholder="👤 Customer Name">
+          <button id="cust-history-btn" class="btn btn-secondary btn-sm" style="display:none; padding: 0 10px;" onclick="showCustomerHistory()" title="View History">📜</button>
+        </div>
         <button class="btn btn-secondary btn-sm" onclick="holdBill()">⏸ Hold</button>
         <button class="btn btn-secondary btn-sm" onclick="clearBill()">🗑 Clear</button>
       </div>
@@ -306,41 +239,78 @@
   </div>
 </div>
 
-<!-- Print Preview Modal -->
+<!-- Print Preview Modal (tabbed: Receipt / KOT / Checklist + editable cart) -->
 <div class="modal-overlay" id="preview-modal">
-  <div class="modal" style="max-width:500px">
+  <div class="modal" style="max-width:620px">
     <div class="modal-header">
-      <span class="modal-title">Receipt Preview</span>
+      <span class="modal-title">🖨️ Review &amp; Edit Before Printing</span>
       <button class="modal-close" onclick="closePreviewModal()">✕</button>
     </div>
-    <div class="modal-body">
-      <pre id="preview-content" style="font-family:monospace;font-size:13px;background:#1A1A1A;padding:16px;border-radius:8px;overflow-x:auto;color:#FFF;white-space:pre;"></pre>
+    <div class="modal-body" style="padding:0">
+      <div class="prev-tabs">
+        <button class="prev-tab active" onclick="switchPreviewTab('receipt',this)">🧾 Receipt</button>
+        <button class="prev-tab" onclick="switchPreviewTab('kot',this)">🍳 KOT</button>
+        <button class="prev-tab" onclick="switchPreviewTab('checklist',this)">✅ Checklist</button>
+      </div>
+      <div class="prev-content active" id="prev-receipt" style="padding:12px">
+        <pre id="preview-receipt-pre" style="font-family:monospace;font-size:12px;background:#FFFDE7;border:1px solid #FFCC80;padding:14px;border-radius:8px;overflow-x:auto;color:#3E2000;white-space:pre;line-height:1.5"></pre>
+      </div>
+      <div class="prev-content" id="prev-kot" style="padding:12px">
+        <pre id="preview-kot-pre" style="font-family:monospace;font-size:12px;background:#FFFDE7;border:1px solid #FFCC80;padding:14px;border-radius:8px;overflow-x:auto;color:#3E2000;white-space:pre;line-height:1.5"></pre>
+      </div>
+      <div class="prev-content" id="prev-checklist" style="padding:12px">
+        <pre id="preview-checklist-pre" style="font-family:monospace;font-size:12px;background:#FFFDE7;border:1px solid #FFCC80;padding:14px;border-radius:8px;overflow-x:auto;color:#3E2000;white-space:pre;line-height:1.5"></pre>
+      </div>
+      <div style="padding:12px;border-top:2px solid #FFCC80;background:#FFF8F0">
+        <div style="font-size:11px;font-weight:700;color:#8D6E63;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">✏️ Edit Items (changes reflect in all 3 receipts)</div>
+        <div id="preview-edit-list"></div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <input type="text" id="preview-add-name" class="form-control" placeholder="Item name" style="flex:2;min-width:110px;height:34px">
+          <input type="number" id="preview-add-price" class="form-control" placeholder="₹" style="width:80px;height:34px">
+          <input type="number" id="preview-add-qty" class="form-control" value="1" style="width:54px;height:34px">
+          <button class="btn btn-secondary btn-sm" onclick="previewAddItem()">＋</button>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closePreviewModal()">Cancel</button>
-      <button class="btn btn-primary" id="confirm-print-btn" onclick="confirmSaveAndPrint()">✅ Confirm & Print</button>
+      <button class="btn btn-primary" id="confirm-print-btn" onclick="confirmSaveAndPrint()">✅ Confirm &amp; Print</button>
     </div>
   </div>
 </div>
 
 <!-- Bill Success Modal -->
 <div class="modal-overlay" id="success-modal">
-  <div class="modal" style="max-width:340px;text-align:center">
-    <div class="modal-body" style="padding:30px 24px">
-      <div style="font-size:50px">✅</div>
-      <h3 style="margin:12px 0 6px;font-size:18px">Bill Saved!</h3>
-      <div class="token-badge" style="display:inline-flex;font-size:24px;padding:8px 20px;margin:10px 0" id="success-token">—</div>
-      <div style="font-size:13px;color:var(--text-muted)" id="success-billno"></div>
-      <div style="font-size:20px;font-weight:800;color:var(--flame-light);margin:10px 0" id="success-total"></div>
-      <div id="print-status" style="margin-bottom:14px"></div>
-      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px">
-        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('kot')">🖨 Reprint KOT</button>
-        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('receipt')">🖨 Reprint Receipt</button>
+  <div class="modal" style="max-width:360px;text-align:center">
+    <div class="modal-body" style="padding:28px 20px">
+      <div style="font-size:48px">✅</div>
+      <h3 style="margin:10px 0 6px;font-size:18px;color:#E65100">Bill Saved!</h3>
+      <div class="token-badge" style="display:inline-flex;font-size:24px;padding:8px 20px;margin:8px 0" id="success-token">—</div>
+      <div style="font-size:13px;color:#8D6E63" id="success-billno"></div>
+      <div style="font-size:20px;font-weight:800;color:#E65100;margin:8px 0" id="success-total"></div>
+      <div id="print-status" style="margin-bottom:12px"></div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('receipt')">🧾 Receipt</button>
+        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('kot')">🍳 KOT</button>
+        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('checklist')">✅ Checklist</button>
       </div>
       <div style="display:flex;gap:8px;justify-content:center">
         <button class="btn btn-secondary" onclick="closeSuccessModal()">New Bill</button>
         <a href="/recent-bills.html" class="btn btn-primary">View Bills</a>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Customer History Modal -->
+<div class="modal-overlay" id="cust-history-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title">📜 Customer History</span>
+      <button class="modal-close" onclick="document.getElementById('cust-history-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px;">
+      <div id="cust-history-content"></div>
     </div>
   </div>
 </div>
@@ -434,24 +404,69 @@ function renderMenuGrid(search='') {
   if (activeCategory) filtered = filtered.filter(i => i.category === activeCategory);
   if (search) filtered = filtered.filter(i => i.item_name.toLowerCase().includes(search.toLowerCase()) || i.item_code.toLowerCase().includes(search.toLowerCase()));
   if (!filtered.length) { grid.innerHTML = '<div style="grid-column:span 2;padding:30px;text-align:center;color:var(--text-muted)">No items found</div>'; return; }
-  grid.innerHTML = filtered.map(item => `
-    <div class="menu-item-card" onclick="addItem(${item.id})">
+  grid.innerHTML = filtered.map(item => {
+    const existing = billItems.find(b => b.item_code === item.item_code && !b.is_manual);
+    const qty = existing ? existing.quantity : 0;
+    
+    let btnHTML = '';
+    if (qty > 0) {
+      btnHTML = `
+        <div class="menu-qty-ctrl" onclick="event.stopPropagation()">
+          <button class="menu-qty-btn" onclick="updateMenuItemQty('${item.item_code}', -1)">-</button>
+          <div class="menu-qty-val">${qty}</div>
+          <button class="menu-qty-btn" onclick="updateMenuItemQty('${item.item_code}', 1)">+</button>
+        </div>
+      `;
+    } else {
+      btnHTML = `<button class="menu-add-btn" onclick="event.stopPropagation(); updateMenuItemQty('${item.item_code}', 1)">+ Add</button>`;
+    }
+
+    return `
+    <div class="menu-item-card ${qty > 0 ? 'active' : ''}" onclick="updateMenuItemQty('${item.item_code}', 1)">
       <div class="item-cat">${item.category}</div>
       <div class="item-name">${item.item_name}</div>
-      <div class="item-code">${item.item_code}</div>
-      <div class="item-price">${formatCurrency(item.default_price)}</div>
-    </div>`).join('');
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:8px;">
+        <div class="item-price">${formatCurrency(item.default_price)}</div>
+        ${btnHTML}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateMenuItemQty(itemCode, delta) {
+  const item = menuItems.find(i => String(i.item_code) === String(itemCode));
+  if (!item) return;
+  const existingIdx = billItems.findIndex(b => b.item_code === item.item_code && !b.is_manual);
+  
+  if (existingIdx > -1) {
+    const newQty = billItems[existingIdx].quantity + delta;
+    if (newQty <= 0) {
+      billItems.splice(existingIdx, 1);
+    } else {
+      billItems[existingIdx].quantity = newQty;
+      billItems[existingIdx].line_total = newQty * billItems[existingIdx].unit_price;
+    }
+  } else if (delta > 0) {
+    billItems.push({
+      item_code: item.item_code,
+      item_name: item.item_name,
+      quantity: delta,
+      unit_price: parseFloat(item.default_price),
+      line_total: parseFloat(item.default_price) * delta,
+      is_manual: false
+    });
+  }
+  
+  renderBill(); // This updates the cart side
+  renderMenuGrid(); // This updates the + / - buttons on the menu grid side
 }
 
 document.getElementById('menu-search').addEventListener('input', e => renderMenuGrid(e.target.value));
 
 function addItem(id) {
+  // Legacy fallback (now handled by updateMenuItemQty)
   const item = menuItems.find(i => i.id === id);
-  if (!item) return;
-  const existing = billItems.find(b => b.item_code === item.item_code && !b.is_manual);
-  if (existing) { existing.quantity++; existing.line_total = existing.quantity * existing.unit_price; }
-  else { billItems.push({ item_code: item.item_code, item_name: item.item_name, quantity: 1, unit_price: parseFloat(item.default_price), line_total: parseFloat(item.default_price), is_manual: false }); }
-  renderBill();
+  if (item) updateMenuItemQty(item.item_code, 1);
 }
 
 document.getElementById('manual-form').addEventListener('submit', e => {
@@ -531,6 +546,9 @@ function updateTotals() {
   document.getElementById('t-delivery').textContent = formatCurrency(delivery);
   document.getElementById('t-discount').textContent = '-' + formatCurrency(discountAmt);
   document.getElementById('t-grand').textContent = formatCurrency(grand);
+  
+  // Also keep the menu grid synced (e.g. if an item is removed from the cart)
+  renderMenuGrid();
   document.getElementById('delivery-row').style.display = deliveryEnabled ? '' : 'none';
   document.getElementById('discount-row').style.display = discountEnabled ? '' : 'none';
   // Mobile FAB + tab badge
@@ -585,6 +603,7 @@ function clearBill() {
   document.getElementById('delivery-opts').style.display = 'none';
   document.getElementById('discount-opts').style.display = 'none';
   document.getElementById('customer-phone').value = '';
+  document.getElementById('customer-name').value  = '';
   document.getElementById('token-display').textContent = '—';
   window.reservedToken = null; // Clear any reserved token
   // Reset order type pills to Dine-in
@@ -699,58 +718,188 @@ function npAdd() {
   }
 }
 
+// ── Preview tab switcher ──
+function switchPreviewTab(tab, btn) {
+  document.querySelectorAll('.prev-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.prev-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('prev-' + tab).classList.add('active');
+}
+
 function closePreviewModal() {
   document.getElementById('preview-modal').classList.remove('open');
 }
 
-function showPrintPreview() {
-  if (!billItems.length) { showToast('Add items before saving.', 'warning'); return; }
-  
+// ── Build all 3 previews in the modal ──
+function buildPreviews() {
+  const pad  = (s, l) => String(s).padEnd(l).slice(0, l);
+  const padL = (s, l) => String(s).padStart(l).slice(-l);
+  const LINE = '-'.repeat(48);
+  const DLINE = '='.repeat(48);
+
   const subtotal = billItems.reduce((s, i) => s + i.line_total, 0);
   const delivery = deliveryEnabled ? deliveryCharge : 0;
   const discType = document.getElementById('discount-type').value;
-  const discVal = parseFloat(document.getElementById('discount-val').value) || 0;
-  const discAmt = discountEnabled ? (discType === 'percentage' ? (subtotal + delivery) * discVal / 100 : discVal) : 0;
-  const grand = Math.max(0, subtotal + delivery - discAmt);
-  const date = new Date().toLocaleString('en-IN');
-  
-  const pad = (str, len) => String(str).padEnd(len).slice(0, len);
-  const padLeft = (str, len) => String(str).padStart(len).slice(-len);
-  
+  const discVal  = parseFloat(document.getElementById('discount-val').value) || 0;
+  const discAmt  = discountEnabled ? (discType === 'percentage' ? (subtotal+delivery)*discVal/100 : discVal) : 0;
+  const grand    = Math.max(0, subtotal + delivery - discAmt);
+  const now      = new Date();
+  const dateStr  = now.toLocaleDateString('en-IN');
+  const timeStr  = now.toLocaleTimeString('en-IN');
   const orderType = document.getElementById('order-type').value;
-  let orderMetaInfo = '';
+  const custName  = (document.getElementById('customer-name').value || '').trim();
+  const custPhone = (document.getElementById('customer-phone').value || '').trim();
+
+  let orderMeta = '';
   if (orderType === 'Dine-in') {
-    const table = document.getElementById('order-table').value.trim();
-    if (table) orderMetaInfo = 'Table: ' + table;
+    const t = document.getElementById('order-table').value.trim();
+    if (t) orderMeta = 'Table: ' + t;
   } else if (orderType === 'Delivery') {
     let loc = document.getElementById('order-location').value;
     if (loc === 'Other') loc = document.getElementById('order-location-other').value.trim();
-    if (loc) orderMetaInfo = 'Location: ' + loc;
+    if (loc) orderMeta = 'Loc: ' + loc;
   }
-  
-  let receipt = '             Fire & Flavour\n';
-  receipt += '      ------------------------------------------------\n';
-  receipt += '      CUSTOMER RECEIPT (PREVIEW)\n';
-  receipt += '      Date    : ' + date + '\n';
-  receipt += '      Type    : ' + orderType + (orderMetaInfo ? ' (' + orderMetaInfo + ')' : '') + '\n';
-  receipt += '      ------------------------------------------------\n';
-  receipt += '      ' + pad('ITEM', 24) + padLeft('QTY', 4) + padLeft('PRICE', 9) + padLeft('AMT', 11) + '\n';
-  receipt += '      ------------------------------------------------\n';
-  
+  const fullType = orderType + (orderMeta ? ' | ' + orderMeta : '');
+
+  // Generate preview bill number (date-token format, matches server)
+  const previewDate = now.toISOString().slice(0,10).replace(/-/g,'');
+  const previewBillNo = previewDate + '-[TOKEN]'; // token assigned by server on save
+
+  // Delivery address (for Delivery orders)
+  let deliveryAddr = '';
+  if (orderType === 'Delivery') {
+    deliveryAddr = document.getElementById('order-location').value;
+    if (deliveryAddr === 'Other') deliveryAddr = (document.getElementById('order-location-other').value || '').trim();
+  }
+
+  // ── RECEIPT preview ──
+  let r = '        Fire & Flavour\n';
+  r += LINE + '\n';
+  r += '          CUSTOMER RECEIPT\n';
+  r += LINE + '\n';
+  r += 'Bill No  : ' + previewBillNo + '\n';
+  r += 'Date     : ' + dateStr + '\n';
+  r += 'Time     : ' + timeStr + '\n';
+  r += 'Type     : ' + fullType + '\n';
+  if (custName)    r += 'Customer : ' + custName + '\n';
+  if (custPhone)   r += 'Phone    : ' + custPhone + '\n';
+  if (deliveryAddr) r += 'Address  : ' + deliveryAddr + '\n';
+  r += LINE + '\n';
+  r += pad('ITEM',24) + padL('QTY',4) + padL('PRICE',9) + padL('AMT',11) + '\n';
+  r += LINE + '\n';
   for (const item of billItems) {
-    receipt += '      ' + pad(item.item_name, 24) + padLeft(item.quantity, 4) + padLeft(item.unit_price.toFixed(2), 9) + padLeft(item.line_total.toFixed(2), 11) + '\n';
+    r += pad(item.item_name,24) + padL(item.quantity,4) + padL(item.unit_price.toFixed(2),9) + padL(item.line_total.toFixed(2),11) + '\n';
   }
-  
-  receipt += '      ------------------------------------------------\n';
-  receipt += '      ' + pad('Subtotal', 36) + padLeft(subtotal.toFixed(2), 12) + '\n';
-  if (deliveryEnabled) receipt += '      ' + pad('Delivery', 36) + padLeft(delivery.toFixed(2), 12) + '\n';
-  if (discountEnabled) receipt += '      ' + pad('Discount', 36) + padLeft('-' + discAmt.toFixed(2), 12) + '\n';
-  receipt += '      ------------------------------------------------\n';
-  receipt += '      ' + pad('GRAND TOTAL', 36) + padLeft(grand.toFixed(2), 12) + '\n';
-  receipt += '      ------------------------------------------------\n';
-  receipt += '             Thank you! Visit again.\n';
-  
-  document.getElementById('preview-content').textContent = receipt;
+  r += LINE + '\n';
+  r += pad('Subtotal',36) + padL(subtotal.toFixed(2),12) + '\n';
+  if (deliveryEnabled) r += pad('Delivery Charge',36) + padL(delivery.toFixed(2),12) + '\n';
+  if (discountEnabled && discAmt > 0) r += pad('Discount',36) + padL('-'+discAmt.toFixed(2),12) + '\n';
+  r += LINE + '\n';
+  r += pad('GRAND TOTAL',36) + padL(grand.toFixed(2),12) + '\n';
+  r += LINE + '\n';
+  r += '       Thank you! Visit again.\n';
+  document.getElementById('preview-receipt-pre').textContent = r;
+
+  // ── KOT preview ──
+  let k = '        Fire & Flavour\n';
+  k += '     *** KITCHEN ORDER ***\n';
+  k += DLINE + '\n';
+  k += '           TOKEN\n';
+  k += '         [Assigned on Save]\n';
+  k += DLINE + '\n';
+  k += ('Date: ' + dateStr).padEnd(24).slice(0,24) + ('Time: ' + timeStr).padEnd(24).slice(0,24) + '\n';
+  k += 'Bill     : ' + previewBillNo + '\n';
+  k += 'Type     : ' + fullType + '\n';
+  if (custName)    k += 'Name     : ' + custName + '\n';
+  if (custPhone)   k += 'Ph       : ' + custPhone + '\n';
+  if (deliveryAddr) k += 'Addr     : ' + deliveryAddr + '\n';
+  k += DLINE + '\n';
+  k += 'ITEM'.padEnd(41) + 'QTY'.padStart(7) + '\n';
+  k += DLINE + '\n';
+  for (const item of billItems) {
+    k += item.item_name.padEnd(41).slice(0,41) + String(item.quantity).padStart(7) + '\n';
+  }
+  k += DLINE + '\n';
+  document.getElementById('preview-kot-pre').textContent = k;
+
+  // ── CHECKLIST preview ──
+  let c = '        Fire & Flavour\n';
+  c += '     *** COUNTER CHECKLIST ***\n';
+  c += 'Pack & Verify each item before dispatch\n';
+  c += DLINE + '\n';
+  c += 'Bill No  : ' + previewBillNo + '\n';
+  c += 'Date     : ' + dateStr + '  Time: ' + timeStr + '\n';
+  c += 'Type     : ' + fullType + '\n';
+  if (custName)    c += 'Customer : ' + custName + '\n';
+  if (custPhone)   c += 'Phone    : ' + custPhone + '\n';
+  if (deliveryAddr) c += 'Address  : ' + deliveryAddr + '\n';
+  c += DLINE + '\n';
+  c += '[ ] ' + pad('ITEM',28) + padL('QTY',5) + padL('AMOUNT',11) + '\n';
+  c += LINE + '\n';
+  for (const item of billItems) {
+    c += '[ ] ' + pad(item.item_name,28) + padL(item.quantity,5) + padL(item.line_total.toFixed(2),11) + '\n';
+    if (item.quantity > 1) c += '    @ Rs.' + item.unit_price.toFixed(2) + ' x ' + item.quantity + '\n';
+    c += LINE + '\n';
+  }
+  c += DLINE + '\n';
+  c += pad('Subtotal',36) + padL(subtotal.toFixed(2),12) + '\n';
+  if (deliveryEnabled) c += pad('Delivery Charge',36) + padL(delivery.toFixed(2),12) + '\n';
+  if (discountEnabled && discAmt > 0) c += pad('Discount',36) + padL('-'+discAmt.toFixed(2),12) + '\n';
+  c += DLINE + '\n';
+  c += pad('GRAND TOTAL',36) + padL(grand.toFixed(2),12) + '\n';
+  c += DLINE + '\n';
+  c += 'Packed by: ____________  Checked by: ____________\n';
+  document.getElementById('preview-checklist-pre').textContent = c;
+
+  // ── Editable cart in modal ──
+  renderPreviewEditList();
+}
+
+function renderPreviewEditList() {
+  const el = document.getElementById('preview-edit-list');
+  if (!el) return;
+  el.innerHTML = billItems.map((item, i) => `
+    <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #FFE0B2">
+      <span style="flex:1;font-size:12px;color:#3E2000;font-weight:600">${item.item_name}</span>
+      <input type="number" value="${item.quantity}" min="1" style="width:46px;height:28px;border:1px solid #FFCC80;border-radius:5px;text-align:center;font-size:12px;background:#FFFDE7;color:#3E2000"
+        onchange="previewChangeQty(${i}, this.value)">
+      <span style="font-size:11px;color:#8D6E63">× ₹</span>
+      <input type="number" value="${item.unit_price.toFixed(2)}" min="0" step="0.01" style="width:70px;height:28px;border:1px solid #FFCC80;border-radius:5px;text-align:right;font-size:12px;background:#FFFDE7;color:#3E2000"
+        onchange="previewChangePrice(${i}, this.value)">
+      <span style="font-size:12px;font-weight:700;color:#E65100;min-width:55px;text-align:right">₹${item.line_total.toFixed(2)}</span>
+      <button onclick="previewRemoveItem(${i})" style="width:24px;height:24px;border:1px solid #C62828;background:rgba(198,40,40,0.08);border-radius:5px;cursor:pointer;color:#C62828;font-size:13px">✕</button>
+    </div>`).join('');
+}
+
+function previewChangeQty(i, val) {
+  billItems[i].quantity = Math.max(1, parseInt(val) || 1);
+  billItems[i].line_total = billItems[i].quantity * billItems[i].unit_price;
+  buildPreviews(); renderBill();
+}
+function previewChangePrice(i, val) {
+  billItems[i].unit_price = parseFloat(val) || 0;
+  billItems[i].line_total = billItems[i].quantity * billItems[i].unit_price;
+  buildPreviews(); renderBill();
+}
+function previewRemoveItem(i) {
+  billItems.splice(i, 1);
+  buildPreviews(); renderBill();
+}
+function previewAddItem() {
+  const name  = document.getElementById('preview-add-name').value.trim();
+  const price = parseFloat(document.getElementById('preview-add-price').value) || 0;
+  const qty   = parseInt(document.getElementById('preview-add-qty').value) || 1;
+  if (!name) { showToast('Enter item name', 'warning'); return; }
+  billItems.push({ item_code: 'MANUAL', item_name: name, quantity: qty, unit_price: price, line_total: parseFloat((price*qty).toFixed(2)), is_manual: true });
+  document.getElementById('preview-add-name').value = '';
+  document.getElementById('preview-add-price').value = '';
+  document.getElementById('preview-add-qty').value = 1;
+  buildPreviews(); renderBill();
+}
+
+function showPrintPreview() {
+  if (!billItems.length) { showToast('Add items before saving.', 'warning'); return; }
+  buildPreviews();
   document.getElementById('preview-modal').classList.add('open');
 }
 
@@ -767,72 +916,58 @@ async function saveBill(print=true) {
     const subtotal = billItems.reduce((s, i) => s + i.line_total, 0);
     const delivery = deliveryEnabled ? deliveryCharge : 0;
     const discType = document.getElementById('discount-type').value;
-    const discVal = parseFloat(document.getElementById('discount-val').value) || 0;
-    const discAmt = discountEnabled ? (discType === 'percentage' ? (subtotal + delivery) * discVal / 100 : discVal) : 0;
-    const grand = Math.max(0, subtotal + delivery - discAmt);
-
+    const discVal  = parseFloat(document.getElementById('discount-val').value) || 0;
+    const discAmt  = discountEnabled ? (discType === 'percentage' ? (subtotal+delivery)*discVal/100 : discVal) : 0;
+    const grand    = Math.max(0, subtotal + delivery - discAmt);
     const orderType = document.getElementById('order-type').value;
-    let orderMetaInfo = '';
+    let orderMeta = '';
     if (orderType === 'Dine-in') {
-      const table = document.getElementById('order-table').value.trim();
-      if (table) orderMetaInfo = 'Table: ' + table;
+      const t = document.getElementById('order-table').value.trim();
+      if (t) orderMeta = 'Table: ' + t;
     } else if (orderType === 'Delivery') {
       let loc = document.getElementById('order-location').value;
       if (loc === 'Other') loc = document.getElementById('order-location-other').value.trim();
-      if (loc) orderMetaInfo = 'Location: ' + loc;
+      if (loc) orderMeta = 'Loc: ' + loc;
     }
-
     const payload = {
       items: billItems,
-      customer_phone: document.getElementById('customer-phone').value.trim() || null,
-      order_type: orderType + (orderMetaInfo ? ' | ' + orderMetaInfo : ''),
+      customer_name:  (document.getElementById('customer-name').value || '').trim() || null,
+      customer_phone: (document.getElementById('customer-phone').value || '').trim() || null,
+      order_type: orderType + (orderMeta ? ' | ' + orderMeta : ''),
+      delivery_address: orderType === 'Delivery' ? (document.getElementById('order-location').value === 'Other'
+        ? (document.getElementById('order-location-other').value || '').trim()
+        : document.getElementById('order-location').value) : null,
       subtotal, delivery_enabled: deliveryEnabled, delivery_charge: delivery,
       discount_enabled: discountEnabled, discount_type: discType, discount_value: discVal, discount_amount: discAmt,
-      grand_total: grand
+      grand_total: grand,
+      print_intent: print
     };
-    if (window.reservedToken) {
-      payload.token_number = window.reservedToken;
-    }
+    if (window.reservedToken) payload.token_number = window.reservedToken;
 
     const res = await apiFetch('/billing', { method: 'POST', body: JSON.stringify(payload) });
     currentBillId = res.bill_id;
-    window.reservedToken = null; // Clear it after use
-    document.getElementById('success-token').textContent = '#' + res.token_number;
+    window.reservedToken = null;
+    document.getElementById('success-token').textContent  = '#' + res.token_number;
     document.getElementById('success-billno').textContent = res.bill_number;
-    document.getElementById('success-total').textContent = formatCurrency(grand);
-    
-    // Cloud Mobile Printing via RawBT Bridge
-    if (res.receipt_b64 || res.kot_b64) {
-       // Combine receipt and KOT if both exist (for single printer setups)
-       let combinedB64 = res.receipt_b64 || res.kot_b64;
-       if (res.receipt_b64 && res.kot_b64) {
-          // If we need both, we combine them. Easiest way in JS without binary buffer manipulation is to just send the receipt for now, or rely on backend to combine them.
-          // For now, let's prioritize Receipt. If they want both, we should combine them in backend.
-       }
-       // Only trigger RawBT if we are on a mobile device (Android)
-       if (/android/i.test(navigator.userAgent)) {
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.src = `rawbt:base64,${combinedB64}`;
-          document.body.appendChild(iframe);
-          setTimeout(() => iframe.remove(), 2000);
-       }
-    }
+    document.getElementById('success-total').textContent  = formatCurrency(grand);
+
     const pr = res.print_results || [];
     const statusEl = document.getElementById('print-status');
     if (!pr.length) {
-      statusEl.innerHTML = `<div style="background:#2a2a00;border:1px solid #ffcc00;border-radius:8px;padding:8px 12px;font-size:12px;color:#ffcc00">⚠️ Auto-print not configured. Use Reprint buttons below.</div>`;
+      statusEl.innerHTML = `<div style="background:#FFF8DC;border:1px solid #F57F17;border-radius:8px;padding:8px 12px;font-size:12px;color:#E65100">⚠️ Auto-print not configured. Use Reprint buttons below.</div>`;
     } else {
       statusEl.innerHTML = pr.map(p => {
-        if (p.success) return `<div style="background:#0a2a0a;border:1px solid var(--success);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--success);margin-bottom:4px">✅ ${p.type.toUpperCase()} printed successfully</div>`;
-        if (p.skipped) return `<div style="background:#2a2a00;border:1px solid #ffcc00;border-radius:8px;padding:8px 12px;font-size:12px;color:#ffcc00;margin-bottom:4px">⚠️ ${p.type.toUpperCase()}: ${p.reason || 'Printer not configured'}</div>`;
-        return `<div style="background:#2a0a0a;border:1px solid var(--danger);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--danger);margin-bottom:4px">❌ ${p.type.toUpperCase()} failed: ${p.error || 'Unknown error'}</div>`;
+        if (p.queued)   return `<div style="background:#E3F2FD;border:1px solid #1565C0;border-radius:8px;padding:8px 12px;font-size:12px;color:#1565C0;margin-bottom:4px">🖨️ ${p.type.toUpperCase()}: Sent to queue — ESP32 must be ON to print</div>`;
+        if (p.success)  return `<div style="background:#E8F5E9;border:1px solid #2E7D32;border-radius:8px;padding:8px 12px;font-size:12px;color:#2E7D32;margin-bottom:4px">✅ ${p.type.toUpperCase()} printed</div>`;
+        if (p.skipped)  return `<div style="background:#FFF8DC;border:1px solid #F57F17;border-radius:8px;padding:8px 12px;font-size:12px;color:#E65100;margin-bottom:4px">⚠️ ${p.type.toUpperCase()}: ${p.reason || 'Printer not configured'}</div>`;
+        return `<div style="background:#FFEBEE;border:1px solid #C62828;border-radius:8px;padding:8px 12px;font-size:12px;color:#C62828;margin-bottom:4px">❌ ${p.type.toUpperCase()} failed: ${p.error || 'Unknown'}</div>`;
       }).join('');
     }
     document.getElementById('success-modal').classList.add('open');
     document.getElementById('token-display').textContent = '#' + res.token_number;
     billItems = [];
     document.getElementById('customer-phone').value = '';
+    document.getElementById('customer-name').value  = '';
     renderBill();
   } catch(e) { showToast(e.message, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = '🖨 Save & Print'; }
@@ -848,30 +983,75 @@ function closeSuccessModal() {
 async function reprintDocument(type) {
   if (!currentBillId) return;
   const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = '⏳ Printing…';
+  btn.disabled = true; btn.textContent = '⏳…';
   try {
-    const res = await apiFetch(`/billing/${currentBillId}/reprint`, {
-      method: 'POST',
-      body: JSON.stringify({ type })
-    });
+    const res = await apiFetch(`/billing/${currentBillId}/reprint`, { method: 'POST', body: JSON.stringify({ type }) });
     const pr = res.print_results || [];
     if (!pr.length) {
       showToast('⚠️ No printer configured in Settings', 'warning');
     } else {
-      const failed = pr.filter(p => !p.success && !p.skipped);
+      const queued  = pr.filter(p => p.queued);
       const skipped = pr.filter(p => p.skipped);
-      const ok = pr.filter(p => p.success);
-      if (ok.length) showToast(`✅ ${ok.map(p => p.type.toUpperCase()).join(' & ')} printed successfully`, 'success');
-      if (skipped.length) showToast(`⚠️ ${skipped.map(p => p.type.toUpperCase()).join(' & ')}: Printer IP not set in Settings`, 'warning');
-      if (failed.length) showToast(`❌ ${failed.map(p => p.type.toUpperCase() + ': ' + (p.error || 'connection error')).join(' | ')}`, 'error');
+      const failed  = pr.filter(p => !p.success && !p.skipped && !p.queued);
+      const ok      = pr.filter(p => p.success);
+      if (queued.length)  showToast(`🖨️ ${queued.map(p=>p.type.toUpperCase()).join(' & ')}: Sent to queue`, 'success');
+      if (ok.length)      showToast(`✅ ${ok.map(p=>p.type.toUpperCase()).join(' & ')} printed`, 'success');
+      if (skipped.length) showToast(`⚠️ ${skipped.map(p=>p.type.toUpperCase()).join(' & ')}: No IP set`, 'warning');
+      if (failed.length)  showToast(`❌ ${failed.map(p=>p.type.toUpperCase()+': '+(p.error||'error')).join(' | ')}`, 'error');
     }
   } catch (e) {
     showToast('❌ Print error: ' + e.message, 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = type === 'kot' ? '🖨 Reprint KOT' : '🖨 Reprint Receipt';
+    const labels = { receipt: '🧾 Receipt', kot: '🍳 KOT', checklist: '✅ Checklist', both: '🖨️ All' };
+    btn.disabled = false; btn.textContent = labels[type] || '🖨️ Reprint';
   }
+}
+
+let phoneTimeout = null;
+let currentCustHistory = [];
+function handlePhoneInput(phone) {
+  clearTimeout(phoneTimeout);
+  const btn = document.getElementById('cust-history-btn');
+  btn.style.display = 'none';
+  if (phone.length >= 10) {
+    phoneTimeout = setTimeout(() => fetchCustomerData(phone), 500);
+  }
+}
+
+async function fetchCustomerData(phone) {
+  try {
+    const data = await apiFetch(`/bills/customer/${phone}`);
+    if (data.customer_name) {
+      document.getElementById('customer-name').value = data.customer_name;
+    }
+    if (data.history && data.history.length > 0) {
+      currentCustHistory = data.history;
+      document.getElementById('cust-history-btn').style.display = 'block';
+    }
+  } catch(e) { console.error('Error fetching customer data', e); }
+}
+
+function showCustomerHistory() {
+  const content = document.getElementById('cust-history-content');
+  if (!currentCustHistory.length) {
+    content.innerHTML = '<p>No past completed orders found.</p>';
+  } else {
+    content.innerHTML = `
+      <table style="width:100%; font-size:13px; text-align:left; border-collapse:collapse;">
+        <thead><tr style="border-bottom:1px solid #FFE0B2;"><th style="padding:6px">Date</th><th style="padding:6px">Type</th><th style="padding:6px">Amount</th></tr></thead>
+        <tbody>
+          ${currentCustHistory.map(h => `
+            <tr style="border-bottom:1px solid #FFE0B2;">
+              <td style="padding:6px">${new Date(h.created_at).toLocaleDateString()}</td>
+              <td style="padding:6px">${h.order_type || 'Dine-in'}</td>
+              <td style="padding:6px; font-weight:bold; color:var(--flame-light);">${formatCurrency(h.grand_total)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+  document.getElementById('cust-history-modal').classList.add('open');
 }
 
 loadMenu();

@@ -41,6 +41,10 @@
         <div class="filters">
           <input type="text" class="form-control" id="search-input" placeholder="🔍 Bill no, phone, token…">
           <input type="date" class="form-control" id="date-filter">
+          <select id="status-filter" class="form-control">
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
           <button class="btn btn-secondary" onclick="loadBills()">Filter</button>
           <button class="btn btn-secondary" onclick="clearFilters()">Clear</button>
           <span id="summary-text" style="font-size:12px;color:var(--text-muted);margin-left:auto"></span>
@@ -73,11 +77,12 @@
     </div>
     <div class="modal-body" id="bill-detail-content"></div>
       <div id="modal-print-status" style="padding:0 10px 8px"></div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
-        <button class="btn btn-secondary" id="reprint-receipt-btn">🖨 Receipt</button>
-        <button class="btn btn-secondary" id="reprint-kot-btn">🍳 KOT</button>
-        <button class="btn btn-primary" id="reprint-both-btn">🖨 Print Both</button>
+      <div class="modal-footer" style="flex-wrap: wrap; justify-content: center; padding: 14px 10px;">
+        <button class="btn btn-secondary" style="flex:1; min-width: 100px; background:#FFEbee; color:#C62828; border-color:#EF9A9A" id="cancel-bill-btn" onclick="cancelBill()">🚫 Cancel</button>
+        <button class="btn btn-secondary" style="flex:1; min-width: 100px;" onclick="closeModal()">✕ Close</button>
+        <button class="btn btn-secondary" style="flex:1; min-width: 100px;" id="reprint-receipt-btn">🖨 Receipt</button>
+        <button class="btn btn-secondary" style="flex:1; min-width: 100px;" id="reprint-kot-btn">🍳 KOT</button>
+        <button class="btn btn-primary" style="flex:1 1 100%;" id="reprint-both-btn">🖨 Print Both</button>
       </div>
   </div>
 </div>
@@ -97,6 +102,7 @@ async function loadBills(page = 1) {
   currentPage = page;
   const search = document.getElementById('search-input').value;
   const date = document.getElementById('date-filter').value;
+  const status = document.getElementById('status-filter').value;
   const tbody = document.getElementById('bills-tbody');
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px"><div class="loader"></div></td></tr>';
 
@@ -104,6 +110,7 @@ async function loadBills(page = 1) {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
     if (date) params.set('date', date);
+    if (status) params.set('status', status);
 
     const data = await apiFetch('/bills?' + params);
     const { bills, pagination } = data;
@@ -247,8 +254,19 @@ async function reprint(billId, type) {
   }
 }
 
+async function cancelBill() {
+  if (!currentBillId) return;
+  if (!confirm('Are you sure you want to cancel this bill?')) return;
+  try {
+    await apiFetch(`/bills/${currentBillId}/cancel`, { method: 'POST' });
+    showToast('Bill cancelled', 'success');
+    closeModal();
+    loadBills(currentPage);
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
 function closeModal() { document.getElementById('bill-modal').classList.remove('open'); }
-function clearFilters() { document.getElementById('search-input').value = ''; document.getElementById('date-filter').value = ''; loadBills(); }
+function clearFilters() { document.getElementById('search-input').value = ''; document.getElementById('date-filter').value = ''; document.getElementById('status-filter').value = 'completed'; loadBills(); }
 
 document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') loadBills(); });
 loadBills();

@@ -47,8 +47,8 @@ function showToast(message, type = 'success') {
 function initSidebar(activePage) {
   const user = getUser();
   const sidebarHTML = `
-  <div class="sidebar-logo">
-    <div class="logo-icon">🔥</div>
+  <div class="sidebar-logo" style="text-align: center;">
+    <img src="/assets/logo.png" alt="F&F Logo" style="width: 80px; height: 80px; object-fit: contain; border-radius: 8px; margin-bottom: 8px;">
     <h1>Fire & Flavour</h1>
     <p>POS & Billing System</p>
   </div>

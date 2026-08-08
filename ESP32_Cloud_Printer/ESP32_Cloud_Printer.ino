@@ -1,6 +1,6 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <PubSubClient.h>
+#include <PubSubClient.h> // By Nick O'Leary
 
 // 1. YOUR RESTAURANT WI-FI
 const char* ssid = "JioFiber-TqU3r";
@@ -56,7 +56,7 @@ void reconnect() {
     Serial.print("Connecting to HiveMQ Cloud...");
     if (mqtt.connect("ESP32_Printer_Bridge", mqtt_user, mqtt_pass)) {
       Serial.println("✅ Connected!");
-      // Subscribe to all printer topics
+      // Subscribe to all printer topics sent by Vercel
       mqtt.subscribe("restaurant/printer/+"); 
     } else {
       Serial.print("❌ Failed, rc=");
@@ -71,7 +71,7 @@ void setup() {
   Serial.begin(115200);
   setup_wifi();
   
-  // Accept standard SSL certificates
+  // Accept standard SSL certificates (Required for HiveMQ TLS)
   secureClient.setInsecure(); 
   
   mqtt.setServer(mqtt_server, mqtt_port);

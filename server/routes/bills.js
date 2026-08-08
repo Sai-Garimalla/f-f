@@ -5,6 +5,23 @@ const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
 
+// ── Phone number suggestions (partial search) ──
+router.get('/phone-suggest', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim().replace(/\D/g, '');
+    if (!q) return res.json([]);
+    const [rows] = await pool.execute(
+      `SELECT DISTINCT customer_phone, customer_name
+       FROM bills
+       WHERE customer_phone LIKE ? AND customer_phone IS NOT NULL AND status='completed'
+       ORDER BY MAX(created_at) DESC
+       LIMIT 10`,
+      [`%${q}%`]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Customer lookup by phone (must come BEFORE /:billId) ──
 router.get('/customer/:phone', async (req, res) => {
   try {

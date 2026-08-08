@@ -21,29 +21,29 @@ router.get('/stats', async (req, res) => {
       case 'yesterday': {
         const y = new Date(now); y.setDate(y.getDate() - 1);
         const yStr = y.toISOString().split('T')[0];
-        dateFilter = `DATE(created_at) = '${yStr}'`;
-        chartGroupBy = `HOUR(created_at)`;
+        dateFilter = `DATE(b.created_at) = '${yStr}'`;
+        chartGroupBy = `HOUR(b.created_at)`;
         chartInterval = 24;
         chartLabel = 'hour';
         break;
       }
       case 'week': {
-        dateFilter = `created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
-        chartGroupBy = `DATE(created_at)`;
+        dateFilter = `b.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+        chartGroupBy = `DATE(b.created_at)`;
         chartInterval = 7;
         chartLabel = 'day';
         break;
       }
       case 'month': {
-        dateFilter = `MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW())`;
-        chartGroupBy = `DATE(created_at)`;
+        dateFilter = `MONTH(b.created_at)=MONTH(NOW()) AND YEAR(b.created_at)=YEAR(NOW())`;
+        chartGroupBy = `DATE(b.created_at)`;
         chartInterval = 30;
         chartLabel = 'day';
         break;
       }
       case 'year': {
-        dateFilter = `YEAR(created_at)=YEAR(NOW())`;
-        chartGroupBy = `MONTH(created_at)`;
+        dateFilter = `YEAR(b.created_at)=YEAR(NOW())`;
+        chartGroupBy = `MONTH(b.created_at)`;
         chartInterval = 12;
         chartLabel = 'month';
         break;
@@ -51,15 +51,15 @@ router.get('/stats', async (req, res) => {
       case 'custom': {
         const f = customFrom || todayStr;
         const t = customTo   || todayStr;
-        dateFilter = `DATE(created_at) BETWEEN '${f}' AND '${t}'`;
-        chartGroupBy = `DATE(created_at)`;
+        dateFilter = `DATE(b.created_at) BETWEEN '${f}' AND '${t}'`;
+        chartGroupBy = `DATE(b.created_at)`;
         chartInterval = null;
         chartLabel = 'day';
         break;
       }
       default: { // today
-        dateFilter = `DATE(created_at) = '${todayStr}'`;
-        chartGroupBy = `HOUR(created_at)`;
+        dateFilter = `DATE(b.created_at) = '${todayStr}'`;
+        chartGroupBy = `HOUR(b.created_at)`;
         chartInterval = 24;
         chartLabel = 'hour';
       }
@@ -81,7 +81,7 @@ router.get('/stats', async (req, res) => {
         SUM(CASE WHEN order_type LIKE 'Delivery%' AND status='completed' THEN 1 ELSE 0 END) AS delivery_count,
         COALESCE(SUM(delivery_charge),0)  AS total_delivery_charge,
         COALESCE(SUM(discount_amount),0)  AS total_discount
-       FROM bills WHERE ${dateFilter}`
+       FROM bills b WHERE ${dateFilter}`
     );
 
     // ── Chart data ──
@@ -89,7 +89,7 @@ router.get('/stats', async (req, res) => {
       `SELECT ${chartGroupBy} AS grp,
               COALESCE(SUM(grand_total),0) AS total,
               COUNT(*) AS bill_count
-       FROM bills WHERE ${dateFilter} AND status='completed'
+       FROM bills b WHERE ${dateFilter} AND status='completed'
        GROUP BY grp ORDER BY grp ASC`
     );
 
@@ -106,9 +106,9 @@ router.get('/stats', async (req, res) => {
 
     // ── Peak hours ──
     const [peakHours] = await pool.execute(
-      `SELECT HOUR(created_at) AS hour, COUNT(*) AS bill_count, COALESCE(SUM(grand_total),0) AS sales
-       FROM bills WHERE ${dateFilter} AND status='completed'
-       GROUP BY HOUR(created_at) ORDER BY bill_count DESC LIMIT 8`
+      `SELECT HOUR(b.created_at) AS hour, COUNT(*) AS bill_count, COALESCE(SUM(grand_total),0) AS sales
+       FROM bills b WHERE ${dateFilter} AND status='completed'
+       GROUP BY HOUR(b.created_at) ORDER BY bill_count DESC LIMIT 8`
     );
 
     // ── Staff performance ──
@@ -134,17 +134,17 @@ router.get('/stats', async (req, res) => {
     switch (period) {
       case 'yesterday': {
         const p = new Date(now); p.setDate(p.getDate() - 2);
-        prevFilter = `DATE(created_at) = '${p.toISOString().split('T')[0]}'`;
+        prevFilter = `DATE(b.created_at) = '${p.toISOString().split('T')[0]}'`;
         break;
       }
-      case 'week':  prevFilter = `created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)`; break;
-      case 'month': prevFilter = `MONTH(created_at)=MONTH(DATE_SUB(NOW(), INTERVAL 1 MONTH)) AND YEAR(created_at)=YEAR(DATE_SUB(NOW(), INTERVAL 1 MONTH))`; break;
-      case 'year':  prevFilter = `YEAR(created_at)=YEAR(NOW())-1`; break;
-      default:      prevFilter = `DATE(created_at) = DATE_SUB('${todayStr}', INTERVAL 1 DAY)`;
+      case 'week':  prevFilter = `b.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND b.created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)`; break;
+      case 'month': prevFilter = `MONTH(b.created_at)=MONTH(DATE_SUB(NOW(), INTERVAL 1 MONTH)) AND YEAR(b.created_at)=YEAR(DATE_SUB(NOW(), INTERVAL 1 MONTH))`; break;
+      case 'year':  prevFilter = `YEAR(b.created_at)=YEAR(NOW())-1`; break;
+      default:      prevFilter = `DATE(b.created_at) = DATE_SUB('${todayStr}', INTERVAL 1 DAY)`;
     }
     const [prevSales] = await pool.execute(
       `SELECT COALESCE(SUM(grand_total),0) AS total, COUNT(*) AS bill_count
-       FROM bills WHERE ${prevFilter} AND status='completed'`
+       FROM bills b WHERE ${prevFilter} AND status='completed'`
     );
 
     // ── Global constants ──

@@ -105,12 +105,20 @@ async function buildCustomerReceipt(bill, items, settings) {
   r += 'Date     : ' + new Date(bill.created_at).toLocaleDateString('en-IN') + LF;
   r += 'Time     : ' + new Date(bill.created_at).toLocaleTimeString('en-IN') + LF;
   r += SLINE + LF;
-  r += pad('TOKEN', 11) + ': ' + BOLD_ON + String(bill.token_number) + BOLD_OFF + LF;
-  r += pad('Type', 11) + ': ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
-  if (bill.customer_name)  r += pad('Customer', 11) + ': ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
-  if (bill.customer_phone) r += pad('Phone', 11) + ': ' + BOLD_ON + bill.customer_phone + BOLD_OFF + LF;
-  if (bill.delivery_address) r += pad('Dest', 11) + ': ' + BOLD_ON + bill.delivery_address + BOLD_OFF + LF;
-  if (bill.cashier_name) r += pad('Taken By', 11) + ': ' + BOLD_ON + bill.cashier_name + BOLD_OFF + LF;
+  // ── 2-column header grid (each col = 24 chars) ──
+  // Row 1: Token (bold) | Type (bold)
+  const tokenStr  = 'Token: ' + BOLD_ON + String(bill.token_number) + BOLD_OFF;
+  const typeStr   = 'Type: '  + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF;
+  r += pad('Token: ', 7) + BOLD_ON + pad(String(bill.token_number), 7) + BOLD_OFF +
+       '  ' + 'Type: ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
+  // Row 2: Customer | Phone
+  const custL = bill.customer_name  ? 'Cus: '   + BOLD_ON + pad(bill.customer_name,  13) + BOLD_OFF : ''.padEnd(24);
+  const custR = bill.customer_phone ? 'Phone: '  + BOLD_ON + bill.customer_phone + BOLD_OFF : '';
+  if (bill.customer_name || bill.customer_phone) r += custL + '  ' + custR + LF;
+  // Row 3: Location | Taken By  (bold on location)
+  const locStr  = bill.delivery_address ? 'Loc: ' + BOLD_ON + pad(bill.delivery_address, 13) + BOLD_OFF : ''.padEnd(24);
+  const takenStr = bill.cashier_name   ? 'Taken: ' + BOLD_ON + bill.cashier_name + BOLD_OFF : '';
+  if (bill.delivery_address || bill.cashier_name) r += locStr + '  ' + takenStr + LF;
   r += SLINE + LF;
 
   // Items header: ITEM(24) QTY(4) PRICE(9) AMT(11) = 48
@@ -152,12 +160,15 @@ async function buildKOT(bill, items, settings) {
   k += CENTER + BOLD_ON + (settings.restaurant_name || 'Fire & Flavour') + BOLD_OFF + LF;
   k += CENTER + BOLD_ON + '*** KITCHEN ORDER ***' + BOLD_OFF + LF;
   k += CENTER + DLINE + LF;
-  k += pad('TOKEN', 11) + ': ' + BOLD_ON + String(bill.token_number) + BOLD_OFF + LF;
-  k += pad('Type', 11) + ': ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
-  if (bill.customer_name)  k += pad('Customer', 11) + ': ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
-  if (bill.customer_phone) k += pad('Phone', 11) + ': ' + BOLD_ON + bill.customer_phone + BOLD_OFF + LF;
-  if (bill.delivery_address) k += pad('Dest', 11) + ': ' + BOLD_ON + bill.delivery_address + BOLD_OFF + LF;
-  if (bill.cashier_name) k += pad('Taken By', 11) + ': ' + BOLD_ON + bill.cashier_name + BOLD_OFF + LF;
+  // ── 2-column header grid ──
+  k += pad('Token: ', 7) + BOLD_ON + pad(String(bill.token_number), 7) + BOLD_OFF +
+       '  ' + 'Type: ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
+  const kCustL = bill.customer_name  ? 'Cus: '  + BOLD_ON + pad(bill.customer_name,  13) + BOLD_OFF : ''.padEnd(24);
+  const kCustR = bill.customer_phone ? 'Phone: ' + BOLD_ON + bill.customer_phone + BOLD_OFF : '';
+  if (bill.customer_name || bill.customer_phone) k += kCustL + '  ' + kCustR + LF;
+  const kLocL  = bill.delivery_address ? 'Loc: ' + BOLD_ON + pad(bill.delivery_address, 13) + BOLD_OFF : ''.padEnd(24);
+  const kTaken = bill.cashier_name    ? 'Taken: ' + BOLD_ON + bill.cashier_name + BOLD_OFF : '';
+  if (bill.delivery_address || bill.cashier_name) k += kLocL + '  ' + kTaken + LF;
   k += DLINE + LF;
   // Header: ITEM(41) QTY(7) = 48
   k += BOLD_ON + 'ITEM'.padEnd(41) + 'QTY'.padStart(7) + LF + BOLD_OFF;
@@ -188,12 +199,13 @@ async function buildCounterChecklist(bill, items, settings) {
   const timeStr = 'Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN');
   c += dateStr.padEnd(24).slice(0, 24) + timeStr.padEnd(24).slice(0, 24) + LF;
   c += DLINE + LF;
-  c += pad('TOKEN', 11) + ': ' + BOLD_ON + String(bill.token_number) + BOLD_OFF + LF;
-  c += pad('Type', 11) + ': ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
-  if (bill.customer_name)    c += pad('Customer', 11) + ': ' + BOLD_ON + bill.customer_name + BOLD_OFF + LF;
-  if (bill.customer_phone)   c += pad('Phone', 11) + ': ' + BOLD_ON + bill.customer_phone + BOLD_OFF + LF;
-  if (bill.delivery_address) c += pad('Dest', 11) + ': ' + BOLD_ON + bill.delivery_address + BOLD_OFF + LF;
-  if (bill.cashier_name) c += pad('Taken By', 11) + ': ' + BOLD_ON + bill.cashier_name + BOLD_OFF + LF;
+  // ── 2-column header grid (no Taken By on checklist) ──
+  c += pad('Token: ', 7) + BOLD_ON + pad(String(bill.token_number), 7) + BOLD_OFF +
+       '  ' + 'Type: ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
+  const cCustL = bill.customer_name  ? 'Cus: '  + BOLD_ON + pad(bill.customer_name,  13) + BOLD_OFF : ''.padEnd(24);
+  const cCustR = bill.customer_phone ? 'Phone: ' + BOLD_ON + bill.customer_phone + BOLD_OFF : '';
+  if (bill.customer_name || bill.customer_phone) c += cCustL + '  ' + cCustR + LF;
+  if (bill.delivery_address) c += 'Loc: ' + BOLD_ON + bill.delivery_address + BOLD_OFF + LF;
   c += DLINE + LF;
 
   // Checklist header: [ ] ITEM(28) QTY(5) PRICE(11) = 48

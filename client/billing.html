@@ -434,8 +434,37 @@ async function loadMenu() {
   } catch(e) { showToast('Failed to load menu: ' + e.message, 'error'); }
 }
 
+let isMenuGridInitialized = false;
 let lastCategory = null;
 let lastSearch = null;
+
+function initMenuGrid() {
+  const grid = document.getElementById('menu-grid');
+  if (!grid) return;
+  
+  let html = '';
+  menuItems.forEach(item => {
+    html += `
+    <div class="menu-item-card" id="menu-card-${item.item_code}" onclick="updateMenuItemQty('${item.item_code}', 1)" style="display:none;">
+      <div class="item-cat">${item.category}</div>
+      <div class="item-name">${item.item_name}</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:8px;">
+        <div class="item-price">${formatCurrency(item.default_price)}</div>
+        <div id="menu-btn-${item.item_code}"></div>
+      </div>
+    </div>`;
+  });
+  
+  grid.innerHTML = html;
+  
+  const emptyMsg = document.createElement('div');
+  emptyMsg.id = 'menu-empty-msg';
+  emptyMsg.style.cssText = 'grid-column:span 2;padding:30px;text-align:center;color:var(--text-muted);display:none;';
+  emptyMsg.textContent = 'No items found';
+  grid.appendChild(emptyMsg);
+  
+  isMenuGridInitialized = true;
+}
 
 function syncMenuQuantities() {
   menuItems.forEach(item => {
@@ -461,6 +490,8 @@ function syncMenuQuantities() {
 }
 
 function renderMenuGrid(searchStr) {
+  if (!isMenuGridInitialized) initMenuGrid();
+
   const searchInput = document.getElementById('menu-search');
   const search = typeof searchStr === 'string' ? searchStr : (searchInput ? searchInput.value : '');
   
@@ -471,50 +502,32 @@ function renderMenuGrid(searchStr) {
   lastCategory = activeCategory;
   lastSearch = search;
   
-  const grid = document.getElementById('menu-grid');
-  if (!grid) return;
+  let visibleCount = 0;
+  const s = String(search).toLowerCase();
   
-  let filtered = menuItems;
-  if (activeCategory) filtered = filtered.filter(i => i.category === activeCategory);
-  if (search) {
-    const s = String(search).toLowerCase();
-    filtered = filtered.filter(i => 
-      String(i.item_name || '').toLowerCase().includes(s) || 
-      String(i.item_code || '').toLowerCase().includes(s)
-    );
-  }
-  
-  if (!filtered.length) { grid.innerHTML = '<div style="grid-column:span 2;padding:30px;text-align:center;color:var(--text-muted)">No items found</div>'; return; }
-  
-  let html = '';
-  for (const item of filtered) {
-    const existing = billItems.find(b => b.item_code === item.item_code && !b.is_manual);
-    const qty = existing ? existing.quantity : 0;
+  menuItems.forEach(item => {
+    const card = document.getElementById('menu-card-' + item.item_code);
+    if (!card) return;
     
-    let btnHTML = '';
-    if (qty > 0) {
-      btnHTML = `
-        <div class="menu-qty-ctrl" onclick="event.stopPropagation()">
-          <button class="menu-qty-btn" onclick="updateMenuItemQty('${item.item_code}', -1)">-</button>
-          <div class="menu-qty-val">${qty}</div>
-          <button class="menu-qty-btn" onclick="updateMenuItemQty('${item.item_code}', 1)">+</button>
-        </div>
-      `;
+    const matchCat = !activeCategory || item.category === activeCategory;
+    const matchSearch = !search || 
+      String(item.item_name || '').toLowerCase().includes(s) || 
+      String(item.item_code || '').toLowerCase().includes(s);
+      
+    if (matchCat && matchSearch) {
+      card.style.display = 'flex';
+      visibleCount++;
     } else {
-      btnHTML = `<button class="menu-add-btn" onclick="event.stopPropagation(); updateMenuItemQty('${item.item_code}', 1)">+ Add</button>`;
+      card.style.display = 'none';
     }
-
-    html += `
-    <div class="menu-item-card ${qty > 0 ? 'active' : ''}" onclick="updateMenuItemQty('${item.item_code}', 1)" id="menu-card-${item.item_code}">
-      <div class="item-cat">${item.category}</div>
-      <div class="item-name">${item.item_name}</div>
-      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:8px;">
-        <div class="item-price">${formatCurrency(item.default_price)}</div>
-        <div id="menu-btn-${item.item_code}">${btnHTML}</div>
-      </div>
-    </div>`;
+  });
+  
+  const emptyMsg = document.getElementById('menu-empty-msg');
+  if (emptyMsg) {
+    emptyMsg.style.display = visibleCount === 0 ? 'block' : 'none';
   }
-  grid.innerHTML = html;
+  
+  syncMenuQuantities();
 }
 
 function updateMenuItemQty(itemCode, delta) {
@@ -856,7 +869,10 @@ function npAdd() {
   const searchInput = document.getElementById('menu-search');
   const code = searchInput.value.trim().toLowerCase();
   if (!code) return;
-  const item = menuItems.find(m => String(m.item_code).toLowerCase() === code || (m.item_name && m.item_name.toLowerCase() === code));
+  let item = menuItems.find(m => String(m.item_code).toLowerCase() === code || (m.item_name && m.item_name.toLowerCase() === code));
+  if (!item) {
+    item = menuItems.find(m => String(m.item_code).toLowerCase().includes(code) || (m.item_name && m.item_name.toLowerCase().includes(code)));
+  }
   if (item) {
     updateMenuItemQty(item.item_code, 1);
     searchInput.value = '';

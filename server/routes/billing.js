@@ -102,8 +102,8 @@ async function buildCustomerReceipt(bill, items, settings) {
   r += LEFT + SLINE + LF;
 
   r += 'Bill No  : ' + bill.bill_number + LF;
-  r += 'Date     : ' + new Date(bill.created_at).toLocaleDateString('en-IN') + LF;
-  r += 'Time     : ' + new Date(bill.created_at).toLocaleTimeString('en-IN') + LF;
+  r += 'Date     : ' + new Date(bill.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) + LF;
+  r += 'Time     : ' + new Date(bill.created_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }) + LF;
   r += SLINE + LF;
   // ── 2-column header grid (each col = 24 chars) ──
   // Row 1: Token (bold) | Type (bold)
@@ -197,8 +197,8 @@ async function buildCounterChecklist(bill, items, settings) {
   c += DLINE + LF;
 
   c += 'Bill No  : ' + bill.bill_number + LF;
-  const dateStr = 'Date: ' + new Date(bill.created_at).toLocaleDateString('en-IN');
-  const timeStr = 'Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN');
+  const dateStr = 'Date: ' + new Date(bill.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const timeStr = 'Time: ' + new Date(bill.created_at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
   c += dateStr.padEnd(24).slice(0, 24) + timeStr.padEnd(24).slice(0, 24) + LF;
   c += DLINE + LF;
   // ── 2-column header grid (no Taken By on checklist) ──

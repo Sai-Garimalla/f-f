@@ -204,6 +204,12 @@
         <div id="staff-perf-list"><div class="loader-full"><div class="loader"></div></div></div>
       </div>
 
+      <!-- Delivery Boy Collections -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><span class="card-title">🛵 Delivery Boy Collections</span></div>
+        <div id="delivery-perf-list"><div class="loader-full"><div class="loader"></div></div></div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -388,6 +394,27 @@ async function loadDashboard() {
           <div style="text-align:right;color:#8D6E63">${s.bills_taken}</div>
           <div style="text-align:right;color:#8D6E63">${formatCurrency(s.avg_bill)}</div>
           <div style="text-align:right;font-weight:700;color:#E65100">${formatCurrency(s.sales)}</div>
+        </div>`).join('');
+    }
+
+    // Delivery boy collections
+    const delPerfEl = document.getElementById('delivery-perf-list');
+    const dp = d.delivery_perf || [];
+    if (!dp.length) {
+      delPerfEl.innerHTML = '<p style="color:#8D6E63;padding:14px;font-size:12px">No delivery data for this period</p>';
+    } else {
+      delPerfEl.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 55px 55px 80px 80px 80px;gap:6px;padding:8px 14px;font-size:10px;color:#8D6E63;font-weight:700;border-bottom:1px solid #FFE0B2;text-transform:uppercase">
+          <div>Driver</div><div style="text-align:right">Done</div><div style="text-align:right">Active</div><div style="text-align:right">💵 Cash</div><div style="text-align:right">📱 UPI</div><div style="text-align:right">Total</div>
+        </div>` +
+        dp.map(r => `
+        <div style="display:grid;grid-template-columns:1fr 55px 55px 80px 80px 80px;gap:6px;padding:9px 14px;font-size:12px;border-bottom:1px solid #FFE0B2;align-items:center">
+          <div style="font-weight:700;color:#3E2000">🛵 ${r.full_name}</div>
+          <div style="text-align:right;color:#2E7D32;font-weight:700">${r.completed}</div>
+          <div style="text-align:right;color:#E65100;font-weight:700">${r.active}</div>
+          <div style="text-align:right;color:#1565C0">${formatCurrency(r.cash_collected)}</div>
+          <div style="text-align:right;color:#6A1B9A">${formatCurrency(r.upi_collected)}</div>
+          <div style="text-align:right;font-weight:800;color:#E65100">${formatCurrency(r.total_collected)}</div>
         </div>`).join('');
     }
 

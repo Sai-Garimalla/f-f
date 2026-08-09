@@ -27,7 +27,7 @@ function authGuard(allowedRoles) {
   const currentPage = window.location.pathname;
   if (allowedRoles) {
     if (!user || !allowedRoles.includes(user.role)) {
-      if (user && user.role === 'delivery_boy') window.location.href = '/delivery.html';
+      if (user && user.role === 'delivery_boy') window.location.href = '/delivery-dashboard.html';
       else if (user && user.role === 'kitchen') window.location.href = '/kitchen.html';
       else window.location.href = '/index.html';
       return false;
@@ -35,7 +35,7 @@ function authGuard(allowedRoles) {
   } else {
     // Default guard: redirect restricted roles to their portal
     if (user && user.role === 'delivery_boy' && currentPage !== '/delivery.html') {
-      window.location.href = '/delivery.html'; return false;
+      window.location.href = '/delivery-dashboard.html'; return false;
     }
     if (user && user.role === 'kitchen' && currentPage !== '/kitchen.html') {
       window.location.href = '/kitchen.html'; return false;
@@ -74,11 +74,12 @@ function initSidebar(activePage) {
     sidebarHTML = `
   <div class="sidebar-logo" style="text-align:center">
     <img src="/assets/logo.png" alt="F&F" style="width:80px;height:80px;object-fit:contain;border-radius:8px;margin-bottom:8px">
-    <h1>Fire & Flavour</h1><p>Delivery Portal</p>
+    <h1>Fire &amp; Flavour</h1><p>Delivery Portal</p>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-label">Delivery</div>
-    <a href="/delivery.html" class="nav-link ${activePage==='delivery'?'active':''}"><span class="nav-icon">🛵</span> My Deliveries</a>
+    <a href="/delivery-dashboard.html" class="nav-link ${activePage==='delivery-dashboard'?'active':''}"><span class="nav-icon">📊</span> My Dashboard</a>
+    <a href="/delivery.html" class="nav-link ${activePage==='delivery'?'active':''}"><span class="nav-icon">🛵</span> My Orders</a>
   </nav>
   <div class="sidebar-footer">
     <div class="user-info"><div class="user-avatar">${user.full_name[0].toUpperCase()}</div><div><div class="user-name">${user.full_name}</div><div class="user-role">🛵 Delivery Boy</div></div></div>

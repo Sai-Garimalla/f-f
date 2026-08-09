@@ -58,6 +58,7 @@ async function initDB() {
         customer_phone VARCHAR(20),
         order_type VARCHAR(100) DEFAULT 'Dine-in',
         delivery_address TEXT,
+        custom_note TEXT,
         subtotal DECIMAL(10,2) DEFAULT 0,
         delivery_enabled TINYINT(1) DEFAULT 0,
         delivery_charge DECIMAL(10,2) DEFAULT 0,
@@ -78,6 +79,7 @@ async function initDB() {
       "ALTER TABLE bills ADD COLUMN IF NOT EXISTS customer_name VARCHAR(100)",
       "ALTER TABLE bills ADD COLUMN IF NOT EXISTS order_type VARCHAR(100) DEFAULT 'Dine-in'",
       "ALTER TABLE bills ADD COLUMN IF NOT EXISTS delivery_address TEXT",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS custom_note TEXT",
       "ALTER TABLE bills MODIFY COLUMN status ENUM('completed','draft','cancelled') DEFAULT 'completed'",
     ];
     for (const sql of billAlters) {

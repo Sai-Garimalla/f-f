@@ -139,6 +139,7 @@
             <span id="phone-required-star" class="phone-required-star" title="Required for this order type">*</span>
           </div>
           <input type="text" id="customer-name" class="topbar-name form-control" placeholder="👤 Name" style="flex:1;">
+          <input type="text" id="custom-note" class="form-control" placeholder="📝 Note" style="flex:1;">
           <button id="cust-history-btn" class="btn btn-secondary btn-sm" style="display:none; padding: 0 10px;" onclick="showCustomerHistory()" title="View History">📜</button>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="holdBill()">⏸ Hold</button>
@@ -639,6 +640,7 @@ function clearBill() {
   document.getElementById('discount-opts').style.display = 'none';
   document.getElementById('customer-phone').value = '';
   document.getElementById('customer-name').value  = '';
+  document.getElementById('custom-note').value  = '';
   document.getElementById('token-display').textContent = '—';
   window.reservedToken = null; // Clear any reserved token
   // Reset order type pills to Dine-in
@@ -1044,6 +1046,7 @@ async function saveBill(print=true, status='completed') {
       items: billItems,
       customer_name:  (document.getElementById('customer-name').value || '').trim() || null,
       customer_phone: (document.getElementById('customer-phone').value || '').trim() || null,
+      custom_note: (document.getElementById('custom-note').value || '').trim() || null,
       order_type: orderType + (orderMeta ? ' | ' + orderMeta : ''),
       delivery_address: orderType === 'Delivery' ? (document.getElementById('order-location').value === 'Other'
         ? (document.getElementById('order-location-other').value || '').trim()
@@ -1077,6 +1080,7 @@ async function saveBill(print=true, status='completed') {
       billItems = [];
       document.getElementById('customer-phone').value = '';
       document.getElementById('customer-name').value  = '';
+      document.getElementById('custom-note').value  = '';
       renderBill();
       checkDraftsOnLoad(); // refresh dropdown
       return;
@@ -1099,6 +1103,7 @@ async function saveBill(print=true, status='completed') {
     billItems = [];
     document.getElementById('customer-phone').value = '';
     document.getElementById('customer-name').value  = '';
+    document.getElementById('custom-note').value  = '';
     renderBill();
   } catch(e) { showToast(e.message, 'error'); }
   finally { btn.disabled = false; btn.innerHTML = '🖨 Save & Print'; }

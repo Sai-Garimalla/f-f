@@ -169,6 +169,7 @@ async function buildKOT(bill, items, settings) {
   const kLocL  = bill.delivery_address ? 'Loc: ' + BOLD_ON + pad(bill.delivery_address, 13) + BOLD_OFF : ''.padEnd(24);
   const kTaken = bill.cashier_name    ? 'Taken: ' + BOLD_ON + bill.cashier_name + BOLD_OFF : '';
   if (bill.delivery_address || bill.cashier_name) k += kLocL + '  ' + kTaken + LF;
+  if (bill.custom_note) k += BOLD_ON + 'Note: ' + bill.custom_note + BOLD_OFF + LF;
   k += DLINE + LF;
   // Header: ITEM(41) QTY(7) = 48
   k += BOLD_ON + 'ITEM'.padEnd(41) + 'QTY'.padStart(7) + LF + BOLD_OFF;
@@ -249,7 +250,7 @@ router.post('/', async (req, res) => {
     await conn.beginTransaction();
 
     const {
-      items, customer_name, customer_phone, delivery_address, order_type,
+      items, customer_name, customer_phone, delivery_address, order_type, custom_note,
       delivery_enabled, delivery_charge,
       discount_enabled, discount_type, discount_value, discount_amount,
       subtotal, grand_total, status, token_number, print_intent
@@ -267,15 +268,15 @@ router.post('/', async (req, res) => {
 
     const [billResult] = await conn.execute(
       `INSERT INTO bills
-       (bill_number, token_number, customer_name, customer_phone, order_type, delivery_address,
+       (bill_number, token_number, customer_name, customer_phone, order_type, delivery_address, custom_note,
         subtotal, delivery_enabled, delivery_charge,
         discount_enabled, discount_type, discount_value, discount_amount,
         grand_total, status, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         billNumber, token,
         customer_name || null, customer_phone || null,
-        order_type || 'Dine-in', delivery_address || null,
+        order_type || 'Dine-in', delivery_address || null, custom_note || null,
         subtotal,
         delivery_enabled ? 1 : 0, delivery_charge || 0,
         discount_enabled ? 1 : 0, discount_type || 'fixed',
@@ -306,6 +307,7 @@ router.post('/', async (req, res) => {
       customer_phone: customer_phone || null,
       order_type: order_type || 'Dine-in',
       delivery_address: delivery_address || null,
+      custom_note: custom_note || null,
       subtotal, delivery_enabled: delivery_enabled ? 1 : 0, delivery_charge: delivery_charge || 0,
       discount_enabled: discount_enabled ? 1 : 0, discount_type: discount_type || 'fixed',
       discount_value: discount_value || 0, discount_amount: discount_amount || 0,
@@ -386,7 +388,7 @@ router.put('/:billId', async (req, res) => {
 
     const billId = req.params.billId;
     const {
-      items, customer_name, customer_phone, delivery_address, order_type,
+      items, customer_name, customer_phone, delivery_address, order_type, custom_note,
       delivery_enabled, delivery_charge,
       discount_enabled, discount_type, discount_value, discount_amount,
       subtotal, grand_total, status, print_intent
@@ -400,14 +402,14 @@ router.put('/:billId', async (req, res) => {
 
     await conn.execute(
       `UPDATE bills SET 
-        customer_name=?, customer_phone=?, order_type=?, delivery_address=?,
+        customer_name=?, customer_phone=?, order_type=?, delivery_address=?, custom_note=?,
         subtotal=?, delivery_enabled=?, delivery_charge=?,
         discount_enabled=?, discount_type=?, discount_value=?, discount_amount=?,
         grand_total=?, status=?
        WHERE bill_id=?`,
       [
         customer_name || null, customer_phone || null,
-        order_type || 'Dine-in', delivery_address || null,
+        order_type || 'Dine-in', delivery_address || null, custom_note || null,
         subtotal,
         delivery_enabled ? 1 : 0, delivery_charge || 0,
         discount_enabled ? 1 : 0, discount_type || 'fixed',

@@ -193,6 +193,7 @@ async function viewBill(billId) {
         <div><span style="color:var(--text-muted)">Date</span><br><strong>${formatDateTime(bill.created_at)}</strong></div>
         <div style="grid-column:span 2"><span style="color:var(--text-muted)">Bill No</span><br><code style="font-size:10px">${bill.bill_number}</code></div>
         <div><span style="color:var(--text-muted)">Customer</span><br><strong>${bill.customer_phone || 'Walk-in'}</strong></div>
+        ${bill.custom_note ? `<div style="grid-column:span 3; padding: 6px; background: #FFF3E0; border-radius: 4px;"><span style="color:var(--text-muted)">Note:</span> <strong>${bill.custom_note}</strong></div>` : ''}
       </div>
       <div class="bill-detail-items table-wrap">
         <table>

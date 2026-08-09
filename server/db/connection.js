@@ -127,6 +127,7 @@ async function initSingleDB(targetPool, isTest = false) {
       "ALTER TABLE bills ADD COLUMN IF NOT EXISTS delivered_by INT",
       "ALTER TABLE bills ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP NULL",
       "ALTER TABLE bills ADD COLUMN IF NOT EXISTS assigned_delivery_boy INT",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS change_settled TINYINT(1) DEFAULT 0",
     ];
     for (const sql of billAlters) {
       try { await conn.execute(sql); } catch(e) { /* column may already exist */ }

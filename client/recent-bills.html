@@ -31,6 +31,13 @@
   .ds-picked_up  { background:#E3F2FD; color:#1565C0; }
   .ds-delivered  { background:#F5F5F5; color:#616161; }
 
+  /* Payment status badges */
+  .pay-paid    { background:#E8F5E9; color:#2E7D32; border:1px solid #A5D6A7; padding:2px 7px; border-radius:8px; font-size:10px; font-weight:700; display:inline-block; }
+  .pay-partial { background:#FFF8E1; color:#F57F17; border:1px solid #FFD54F; padding:2px 7px; border-radius:8px; font-size:10px; font-weight:700; display:inline-block; }
+  .pay-unpaid  { background:#FFEBEE; color:#C62828; border:1px solid #EF9A9A; padding:2px 7px; border-radius:8px; font-size:10px; font-weight:700; display:inline-block; }
+  .pay-na      { background:#F5F5F5; color:#9E9E9E; padding:2px 7px; border-radius:8px; font-size:10px; font-weight:700; display:inline-block; }
+  .pending-bal { color:#C62828; font-size:10px; font-weight:700; margin-top:2px; }
+
   /* Customer hero in modal */
   .cust-hero { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; background:linear-gradient(135deg,#FFF8F0,#FFFDE7); border-radius:12px; margin-bottom:14px; border:1px solid #FFCC80; }
   .cust-hero-field { display:flex; flex-direction:column; gap:3px; }
@@ -69,10 +76,30 @@
     </div>
     <div class="page-body">
       <div class="card">
-        <div class="filters">
-          <input type="text" class="form-control" id="search-input" placeholder="🔍 Name, bill no, phone, token…" oninput="debounceFilter()">
-          <input type="date" class="form-control" id="date-filter" onchange="loadBills()">
-          <select id="status-filter" class="form-control" onchange="loadBills()">
+        <div class="filters" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+          <div style="display:flex; gap:4px; flex:1 1 200px;">
+            <input type="text" class="form-control" id="search-input" placeholder="🔍 Find Name, bill no, phone, token…" onkeydown="if(e.key==='Enter') loadBills(1)" oninput="debounceFilter()">
+            <button class="btn btn-primary" onclick="loadBills(1)" style="padding:6px 14px; font-weight:700;">Find</button>
+          </div>
+          <select id="prefix-filter" class="form-control" onchange="loadBills(1)">
+            <option value="">All Order Types</option>
+            <option value="DIN">DIN — Dine-in</option>
+            <option value="DM">DM — Delivery (Morning)</option>
+            <option value="DE">DE — Delivery (Evening)</option>
+            <option value="TM">TM — Takeaway (Morning)</option>
+            <option value="TE">TE — Takeaway (Evening)</option>
+          </select>
+          <select id="payment-filter" class="form-control" onchange="loadBills(1)">
+            <option value="">All Payment Statuses</option>
+            <option value="paid">✅ Fully Paid</option>
+            <option value="partial">⚠️ Partial Paid</option>
+            <option value="unpaid">⚠️ Unpaid</option>
+            <option value="overpaid">💰 Overpaid (Change Due)</option>
+            <option value="change_unsettled">⏳ Unsettled Change</option>
+            <option value="change_settled">✅ Settled Change</option>
+          </select>
+          <input type="date" class="form-control" id="date-filter" onchange="loadBills(1)">
+          <select id="status-filter" class="form-control" onchange="loadBills(1)">
             <option value="completed">✅ Completed</option>
             <option value="cancelled">🚫 Cancelled</option>
           </select>
@@ -82,11 +109,11 @@
         <div class="table-wrap">
           <table id="bills-table">
             <thead><tr>
-              <th>Token</th><th>Customer</th><th>Phone</th><th>Type</th><th>Bill No</th><th>Date & Time</th>
-              <th>Total</th><th>Status</th><th>Cashier</th><th>Actions</th>
+              <th>Token</th><th>Customer</th><th>Phone</th><th>Type</th><th>Bill No</th><th>Date &amp; Time</th>
+              <th>Total</th><th>Payment</th><th>Status</th><th>Cashier</th><th>Actions</th>
             </tr></thead>
             <tbody id="bills-tbody">
-              <tr><td colspan="10" style="text-align:center;padding:40px"><div class="loader"></div></td></tr>
+              <tr><td colspan="11" style="text-align:center;padding:40px"><div class="loader"></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -143,6 +170,32 @@ document.getElementById('date-filter').value = new Date().toISOString().split('T
 const DS_LABELS = { pending: '⏳ Pending', preparing: '🍳 Preparing', ready: '✅ Ready', picked_up: '📦 Picked Up', delivered: '🏁 Delivered' };
 const PS_LABELS = { pending: '', packing: '🔥 Packing', packed: '✅ Packed' };
 
+function paymentBadge(b) {
+  // Only show payment status for completed bills
+  if (b.status === 'cancelled') return '<span class="pay-na">Cancelled</span>';
+  const grand = parseFloat(b.grand_total || 0);
+  const cash  = parseFloat(b.cash_collected || 0);
+  const upi   = parseFloat(b.upi_collected  || 0);
+  const collected = cash + upi;
+  if (grand <= 0) return '';
+  const diff = collected - grand;
+
+  if (collected <= 0) {
+    return `<span class="pay-unpaid">⚠️ Unpaid</span>`;
+  } else if (diff < -0.005) {
+    return `<span class="pay-partial">Partial</span><div class="pending-bal">-₹${Math.abs(diff).toFixed(2)} due</div>`;
+  } else if (diff > 0.005) {
+    if (b.change_settled) {
+      return `<span class="pay-paid" style="background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7">✅ Settled (+₹${diff.toFixed(2)})</span>`;
+    } else {
+      const btn = canManage ? `<button onclick="event.stopPropagation(); toggleSettleChange(${b.bill_id})" style="margin-left:4px;padding:2px 6px;font-size:10px;font-weight:700;border-radius:6px;background:#00838F;color:#fff;border:none;cursor:pointer">Settle</button>` : '';
+      return `<span class="pay-partial" style="background:#E0F7FA;color:#006064;border:1px solid #80DEEA">💰 Change: ₹${diff.toFixed(2)}</span>${btn}`;
+    }
+  } else {
+    return `<span class="pay-paid">✅ Paid ₹${collected.toFixed(2)}</span>`;
+  }
+}
+
 function tokenStr(b) {
   const pfx = b.token_prefix === 'T' ? 'DIN' : (b.token_prefix || 'DIN');
   return '#' + pfx + b.token_number;
@@ -161,15 +214,19 @@ function psbadge(status) {
 
 async function loadBills(page = 1) {
   currentPage = page;
-  const search = document.getElementById('search-input').value;
-  const date = document.getElementById('date-filter').value;
-  const status = document.getElementById('status-filter').value;
-  const tbody = document.getElementById('bills-tbody');
-  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:30px"><div class="loader"></div></td></tr>';
+  const search        = document.getElementById('search-input').value.trim();
+  const tokenPrefix   = document.getElementById('prefix-filter').value;
+  const paymentStatus = document.getElementById('payment-filter').value;
+  const date          = document.getElementById('date-filter').value;
+  const status        = document.getElementById('status-filter').value;
+  const tbody         = document.getElementById('bills-tbody');
+  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:30px"><div class="loader"></div></td></tr>';
 
   try {
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
+    if (tokenPrefix) params.set('token_prefix', tokenPrefix);
+    if (paymentStatus) params.set('payment_status', paymentStatus);
     if (date) params.set('date', date);
     if (status) params.set('status', status);
 
@@ -177,9 +234,9 @@ async function loadBills(page = 1) {
     const { bills, pagination } = data;
 
     if (!bills.length) {
-      tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">📋</div><p>No bills found</p></div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">📋</div><p>No bills found matching filters</p></div></td></tr>';
       document.getElementById('pagination').innerHTML = '';
-      document.getElementById('summary-text').textContent = '';
+      document.getElementById('summary-text').textContent = '0 bills';
       return;
     }
 
@@ -188,6 +245,7 @@ async function loadBills(page = 1) {
     tbody.innerHTML = bills.map(b => {
       const ot = (b.order_type || '').toLowerCase();
       const isDelivery = ot.includes('delivery') || ot.includes('takeaway');
+      const payHtml = paymentBadge(b);
       return `
       <tr>
         <td><span style="background:var(--gradient);padding:3px 10px;border-radius:6px;font-weight:800;font-size:13px">${tokenStr(b)}</span></td>
@@ -197,16 +255,17 @@ async function loadBills(page = 1) {
         <td style="font-size:11px;font-family:monospace">${b.bill_number}</td>
         <td style="font-size:11px">${formatDateTime(b.created_at)}</td>
         <td style="font-weight:700;color:var(--flame-light)">${formatCurrency(b.grand_total)}</td>
+        <td style="white-space:nowrap">${payHtml}</td>
         <td style="white-space:nowrap">${isDelivery ? dsbadge(b.delivery_status) + ' ' + psbadge(b.packing_status) : ''}</td>
         <td style="font-size:11px;color:var(--text-muted)">${b.cashier_name || '—'}</td>
         <td><button class="btn btn-secondary btn-sm" onclick="viewBill(${b.bill_id})">👁 View</button></td>
       </tr>`}).join('');
 
-    // Mobile card list
     const cardList = document.getElementById('bills-card-list');
     cardList.innerHTML = bills.map(b => {
       const ot = (b.order_type || '').toLowerCase();
       const isDelivery = ot.includes('delivery') || ot.includes('takeaway');
+      const payHtml = paymentBadge(b);
       return `
       <div class="bill-card" onclick="viewBill(${b.bill_id})">
         <div class="bill-card-top">
@@ -220,6 +279,7 @@ async function loadBills(page = 1) {
           </div>
           <div class="bill-card-right">
             <div class="bill-card-amount">${formatCurrency(b.grand_total)}</div>
+            <div style="margin-top:4px">${payHtml}</div>
             ${isDelivery ? `<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${dsbadge(b.delivery_status)} ${psbadge(b.packing_status)}</div>` : ''}
             <div class="bill-card-type">${b.cashier_name || ''}</div>
           </div>
@@ -333,17 +393,48 @@ async function viewBill(billId) {
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border);margin-top:4px;font-size:15px;font-weight:800;color:var(--flame-light)"><span>GRAND TOTAL</span><span>${formatCurrency(grand)}</span></div>
       </div>`;
 
-    // Delivery payment summary
+    // Payment status block (for all completed bills)
     const cash = parseFloat(bill.cash_collected || 0);
     const upi  = parseFloat(bill.upi_collected || 0);
-    const paymentBlock = (isDelivery && bill.delivery_status === 'delivered' && (cash + upi) > 0) ? `
-      <div class="payment-summary" style="margin-top:12px;">
-        <div style="font-weight:700;color:#2E7D32;margin-bottom:8px;">💰 Payment Collected</div>
-        <div class="payment-row"><span>💵 Cash</span><span style="font-weight:700;">₹${cash.toFixed(2)}</span></div>
-        <div class="payment-row"><span>📱 UPI</span><span style="font-weight:700;">₹${upi.toFixed(2)}</span></div>
-        <div class="payment-total-row"><span>Total</span><span>₹${(cash + upi).toFixed(2)}</span></div>
-        ${bill.delivery_boy_name ? `<div style="font-size:11px;color:#8D6E63;margin-top:4px;">Delivered by: ${bill.delivery_boy_name}</div>` : ''}
-      </div>` : '';
+    const collected = cash + upi;
+    const diff = collected - grand;
+
+    let paymentBlock = '';
+    if (bill.status === 'completed') {
+      let balHtml = '';
+      if (diff < -0.005) {
+        balHtml = `<div style="background:#FFEBEE;border:1px solid #EF9A9A;border-radius:8px;padding:8px 12px;margin-top:8px;display:flex;justify-content:space-between;font-size:14px;font-weight:800;color:#C62828;">
+             <span>⚠️ Pending Balance</span><span>-₹${Math.abs(diff).toFixed(2)}</span>
+           </div>`;
+      } else if (diff > 0.005) {
+        const isSettled = bill.change_settled;
+        const settleBtnHtml = canManage
+          ? `<button onclick="toggleSettleChange(${billId})" style="margin-top:8px;width:100%;padding:8px;border-radius:8px;font-weight:800;font-size:13px;border:none;cursor:pointer;background:${isSettled ? '#FFF3E0;color:#E65100;border:1px solid #FFE0B2' : '#00838F;color:#fff'}">
+               ${isSettled ? '↩️ Unmark Change Settled' : '✅ Settle Extra Change (₹' + diff.toFixed(2) + ')'}
+             </button>`
+          : '';
+
+        balHtml = `<div style="background:${isSettled ? '#E8F5E9' : '#E0F7FA'};border:1px solid ${isSettled ? '#A5D6A7' : '#80DEEA'};border-radius:8px;padding:10px 12px;margin-top:8px;color:${isSettled ? '#2E7D32' : '#006064'};">
+             <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;">
+               <span>💰 Extra Cash Received</span><span>+₹${diff.toFixed(2)}</span>
+             </div>
+             <div style="font-size:11px;margin-top:4px;font-weight:600;">
+               Status: ${isSettled ? '✅ Change Settled with Customer/Admin' : '⏳ Change Unsettled (Due to customer)'}
+             </div>
+             ${settleBtnHtml}
+           </div>`;
+      }
+
+      paymentBlock = `
+        <div class="payment-summary" style="margin-top:12px;">
+          <div style="font-weight:700;color:#2E7D32;margin-bottom:8px;">💰 Payment Details</div>
+          <div class="payment-row"><span>💵 Cash</span><span style="font-weight:700;">₹${cash.toFixed(2)}</span></div>
+          <div class="payment-row"><span>📱 UPI</span><span style="font-weight:700;">₹${upi.toFixed(2)}</span></div>
+          <div class="payment-total-row"><span>Total Collected</span><span>₹${collected.toFixed(2)}</span></div>
+          ${balHtml}
+          ${bill.delivery_boy_name ? `<div style="font-size:11px;color:#8D6E63;margin-top:4px;">Delivered by: ${bill.delivery_boy_name}</div>` : ''}
+        </div>`;
+    }
 
     content.innerHTML = customerHero + itemsTable + totalsBlock + paymentBlock;
 
@@ -366,6 +457,19 @@ async function viewBill(billId) {
 
   } catch(e) {
     content.innerHTML = `<p style="color:var(--danger)">${e.message}</p>`;
+  }
+}
+
+async function toggleSettleChange(billId) {
+  try {
+    const res = await apiFetch(`/bills/${billId}/settle-change`, { method: 'POST' });
+    showToast(res.change_settled ? '✅ Extra change marked as settled' : '↩️ Change marked as unsettled');
+    if (currentBillId === billId) {
+      viewBill(billId);
+    }
+    loadBills(currentPage);
+  } catch (err) {
+    showToast('❌ ' + err.message, 'danger');
   }
 }
 

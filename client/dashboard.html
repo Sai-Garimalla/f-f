@@ -26,6 +26,12 @@
   .trend-up   { background:#E8F5E9; color:#2E7D32; }
   .trend-down { background:#FFEBEE; color:#C62828; }
   .trend-flat { background:#F5F5F5; color:#757575; }
+  .kpi.actual-earn { border-color:#A5D6A7; }
+  .kpi.actual-earn .kpi-val { color:#2E7D32; }
+  .kpi.actual-earn:hover { border-color:#2E7D32; box-shadow:0 4px 16px rgba(46,125,50,.12); }
+  .kpi.cancelled-earn { border-color:#EF9A9A; }
+  .kpi.cancelled-earn .kpi-val { color:#C62828; }
+  .kpi.cancelled-earn:hover { border-color:#C62828; box-shadow:0 4px 16px rgba(198,40,40,.12); }
 
   /* Type breakdown */
   .type-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
@@ -111,23 +117,31 @@
           <button class="btn btn-primary btn-sm" onclick="loadDashboard()">Go</button>
         </div>
         <span id="period-label"></span>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <input type="date" id="export-date" class="form-control" style="max-width:145px;padding:6px 10px;font-size:12px;" title="Pick date to export or sync">
+          <button onclick="exportExcel()" id="export-btn" style="background:linear-gradient(135deg,#1565C0,#1E88E5);color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+            📊 Export Excel
+          </button>
+          <button onclick="syncGoogleSheets()" id="sync-sheets-btn" style="background:linear-gradient(135deg,#0F9D58,#188038);color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+            🔄 Sync to Google Sheets
+          </button>
+        </div>
       </div>
 
       <!-- KPI Row -->
       <div class="kpi-grid">
-        <div class="kpi">
+        <div class="kpi actual-earn">
           <div class="kpi-icon">💰</div>
           <div class="kpi-val" id="k-sales">—</div>
-          <div class="kpi-lbl">Total Revenue</div>
+          <div class="kpi-lbl">Actual Revenue (Completed)</div>
           <div class="kpi-sub" id="k-sales-sub"></div>
           <div class="kpi-trend" id="k-sales-trend"></div>
         </div>
-        <div class="kpi">
-          <div class="kpi-icon">🧾</div>
-          <div class="kpi-val" id="k-bills">—</div>
-          <div class="kpi-lbl">Completed Bills</div>
-          <div class="kpi-sub" id="k-bills-sub"></div>
-          <div class="kpi-trend" id="k-bills-trend"></div>
+        <div class="kpi cancelled-earn">
+          <div class="kpi-icon">🚫</div>
+          <div class="kpi-val" id="k-cancelled-earn">—</div>
+          <div class="kpi-lbl">Cancelled Orders Value</div>
+          <div class="kpi-sub" id="k-cancelled-earn-sub"></div>
         </div>
         <div class="kpi">
           <div class="kpi-icon">📈</div>
@@ -145,8 +159,8 @@
 
       <!-- Extra metrics -->
       <div class="metric-grid" style="margin-bottom:16px">
-        <div class="metric"><div class="metric-val" id="m-cancelled">—</div><div class="metric-lbl">🚫 Cancelled</div></div>
-        <div class="metric"><div class="metric-val" id="m-draft">—</div><div class="metric-lbl">⏸ On Hold</div></div>
+        <div class="metric"><div class="metric-val" id="m-bills">—</div><div class="metric-lbl">🧾 Completed Bills</div></div>
+        <div class="metric"><div class="metric-val" id="m-cancelled">—</div><div class="metric-lbl">🚫 Cancelled Bills</div></div>
         <div class="metric"><div class="metric-val" id="m-delivery-fee">—</div><div class="metric-lbl">🛵 Delivery Fees</div></div>
         <div class="metric"><div class="metric-val" id="m-discount">—</div><div class="metric-lbl">🏷️ Discounts Given</div></div>
       </div>
@@ -283,17 +297,16 @@ async function loadDashboard() {
     document.getElementById('k-sales').textContent      = formatCurrency(d.total_sales);
     document.getElementById('k-sales-sub').textContent  = `${d.bill_count} completed bills`;
     document.getElementById('k-sales-trend').outerHTML  = trendBadge(d.total_sales, d.prev_sales) || '<span id="k-sales-trend"></span>';
-    document.getElementById('k-bills').textContent      = d.bill_count;
-    document.getElementById('k-bills-sub').textContent  = `${d.cancelled_count} cancelled`;
-    document.getElementById('k-bills-trend').outerHTML  = trendBadge(d.bill_count, d.prev_bills) || '<span id="k-bills-trend"></span>';
+    document.getElementById('k-cancelled-earn').textContent = formatCurrency(d.cancelled_earnings || 0);
+    document.getElementById('k-cancelled-earn-sub').textContent = `${d.cancelled_count} order${d.cancelled_count !== 1 ? 's' : ''} lost`;
     document.getElementById('k-avg').textContent        = formatCurrency(d.avg_bill);
     document.getElementById('k-avg-sub').textContent    = d.bill_count > 0 ? `Highest: ${formatCurrency(d.total_sales)}` : '';
     document.getElementById('k-staff').textContent      = d.staff_count;
     document.getElementById('k-menu-sub').textContent   = `${d.menu_count} menu items`;
 
     // Extra metrics
+    document.getElementById('m-bills').textContent       = d.bill_count + ' bills';
     document.getElementById('m-cancelled').textContent   = d.cancelled_count + ' bills';
-    document.getElementById('m-draft').textContent       = d.draft_count + ' bills';
     document.getElementById('m-delivery-fee').textContent= formatCurrency(d.total_delivery_charge);
     document.getElementById('m-discount').textContent    = formatCurrency(d.total_discount);
 
@@ -419,6 +432,54 @@ async function loadDashboard() {
     }
 
   } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ── Set default export date to today ──────────────────────────
+document.getElementById('export-date').value = today;
+
+async function exportExcel() {
+  const dateVal = document.getElementById('export-date').value || today;
+  const btn = document.getElementById('export-btn');
+  btn.textContent = '⏳ Generating…';
+  btn.disabled = true;
+  try {
+    const token = localStorage.getItem('ff_token') || sessionStorage.getItem('ff_token') || '';
+    const url = `/api/export/daily?date=${dateVal}`;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'Export failed' }));
+      throw new Error(err.error || 'Export failed');
+    }
+    const blob = await resp.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `FireAndFlavour_${dateVal}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    showToast(`✅ Excel exported for ${dateVal}`, 'success');
+  } catch(e) {
+    showToast('❌ ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = '📊 Export Excel';
+    btn.disabled = false;
+  }
+}
+
+async function syncGoogleSheets() {
+  const dateVal = document.getElementById('export-date').value || today;
+  const btn = document.getElementById('sync-sheets-btn');
+  btn.textContent = '⏳ Syncing...';
+  btn.disabled = true;
+  try {
+    const data = await apiFetch(`/export/sync-sheets?date=${dateVal}`, { method: 'POST' });
+    showToast(data.message || `✅ Successfully synced data for ${dateVal} to Google Sheets`, 'success');
+  } catch(e) {
+    showToast('❌ Sync failed: ' + e.message, 'error');
+  } finally {
+    btn.innerHTML = '🔄 Sync to Google Sheets';
+    btn.disabled = false;
+  }
 }
 
 loadDashboard();

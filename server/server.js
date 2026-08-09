@@ -30,6 +30,7 @@ app.use('/api/bills', require('./routes/bills'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/delivery', require('./routes/delivery'));
+app.use('/api/export',   require('./routes/export'));
 
 // SPA fallback — serve index.html for all non-API routes
 app.get('*', (req, res) => {
@@ -51,6 +52,14 @@ async function start() {
       app.listen(PORT, () => {
         console.log(`🔥 Fire & Flavour server running on http://localhost:${PORT}`);
       });
+      
+      // Start Google Sheets Auto-Sync (11:55 PM IST = 6:25 PM UTC)
+      const cron = require('node-cron');
+      const { syncDailyToSheets } = require('./jobs/daily-sheet-sync');
+      cron.schedule('25 18 * * *', () => {
+        console.log('⏳ Running Google Sheets Auto-Sync...');
+        syncDailyToSheets();
+      }, { timezone: 'UTC' });
     }
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);

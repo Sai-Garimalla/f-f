@@ -97,9 +97,26 @@
 <div class="app-shell">
   <div class="sidebar" id="sidebar"></div>
   <div class="main-content" style="padding:0;">
-    <div class="delivery-header">
-      <h2>🛵 Delivery Orders</h2>
-      <p id="delivery-greeting">Loading your deliveries…</p>
+    <div class="delivery-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <div>
+        <h2>🛵 Delivery Orders</h2>
+        <p id="delivery-greeting">Loading your deliveries…</p>
+      </div>
+      <button onclick="showQR()" style="background:linear-gradient(135deg,#FF8F00,#E65100); color:#fff; border:none; border-radius:10px; padding:10px 16px; font-size:13px; font-weight:800; cursor:pointer; flex-shrink:0;">
+        📱 Show QR
+      </button>
+    </div>
+
+    <div class="filters" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 14px; background:#FFF8F0; border-bottom:1px solid #FFE0B2;">
+      <div style="display:flex; gap:4px; flex:1 1 200px;">
+        <input type="text" class="form-control" id="delivery-search-input" placeholder="🔍 Find Token, Name, Phone, Address…" oninput="renderOrders()" style="flex:1; border-radius:8px; padding:6px 12px; border:1px solid #FFCC80;">
+        <button class="btn btn-primary" onclick="renderOrders()" style="padding:6px 14px; font-weight:700; border-radius:8px;">Find</button>
+      </div>
+      <select id="delivery-prefix-filter" class="form-control" onchange="renderOrders()" style="max-width:160px; border-radius:8px; padding:6px 10px; border:1px solid #FFCC80;">
+        <option value="">All Delivery Types</option>
+        <option value="DM">DM — Delivery (Morning)</option>
+        <option value="DE">DE — Delivery (Evening)</option>
+      </select>
     </div>
 
     <div class="status-tabs">
@@ -169,6 +186,19 @@
   </div>
 </div>
 
+<!-- QR Modal -->
+<div id="qr-modal" onclick="hideQR()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center; padding:20px;">
+  <div onclick="event.stopPropagation()" style="background:#fff; border-radius:20px; padding:24px; max-width:340px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <div style="font-size:16px; font-weight:800; color:#E65100; margin-bottom:4px;">📱 Scan to Pay</div>
+    <div style="font-size:12px; color:#8D6E63; margin-bottom:16px;">Use any UPI app — GPay, PhonePe, Paytm</div>
+    <img src="assets/payment_qr.png" alt="Payment QR" style="width:100%; max-width:280px; border-radius:12px; border:2px solid #FFE0B2;" onerror="this.style.display='none'; document.getElementById('del-qr-fallback').style.display='block'">
+    <div id="del-qr-fallback" style="display:none; padding:40px; background:#FFF3E0; border-radius:12px; color:#E65100; font-size:14px; font-weight:700;">⚠️ QR not found.</div>
+    <div style="margin-top:16px;">
+      <button onclick="hideQR()" style="background:#F5F5F5; border:none; border-radius:10px; padding:12px 28px; font-size:14px; font-weight:700; cursor:pointer; color:#555;">✕ Close</button>
+    </div>
+  </div>
+</div>
+
 <script src="js/api.js"></script>
 <script>
 if (!authGuard(['delivery_boy', 'admin', 'staff'])) throw 0;
@@ -218,16 +248,36 @@ function filterOrders(filter, btn) {
 
 function renderOrders() {
   const list = document.getElementById('orders-list');
+  const searchInput = document.getElementById('delivery-search-input');
+  const prefixFilter = document.getElementById('delivery-prefix-filter');
+  const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  const pfx = prefixFilter ? prefixFilter.value : '';
+
   let orders = allOrders;
 
   if (currentFilter === 'active') {
-    orders = allOrders.filter(o => ['pending','preparing','ready','picked_up'].includes(o.delivery_status));
+    orders = orders.filter(o => ['pending','preparing','ready','picked_up'].includes(o.delivery_status));
   } else if (currentFilter !== 'all') {
-    orders = allOrders.filter(o => o.delivery_status === currentFilter);
+    orders = orders.filter(o => o.delivery_status === currentFilter);
+  }
+
+  if (pfx) {
+    orders = orders.filter(o => o.token_prefix === pfx);
+  }
+
+  if (q) {
+    orders = orders.filter(o => {
+      const token = `#${o.token_prefix || ''}${o.token_number}`.toLowerCase();
+      const name  = (o.customer_name || '').toLowerCase();
+      const phone = (o.customer_phone || '').toLowerCase();
+      const addr  = (o.delivery_address || '').toLowerCase();
+      const bill  = (o.bill_number || '').toLowerCase();
+      return token.includes(q) || name.includes(q) || phone.includes(q) || addr.includes(q) || bill.includes(q);
+    });
   }
 
   if (!orders.length) {
-    list.innerHTML = `<div class="no-orders"><div class="icon">${currentFilter === 'delivered' ? '🏁' : '🛵'}</div><p>No orders in this category</p></div>`;
+    list.innerHTML = `<div class="no-orders"><div class="icon">${currentFilter === 'delivered' ? '🏁' : '🛵'}</div><p>No orders matching your filters</p></div>`;
     return;
   }
 
@@ -358,9 +408,38 @@ function renderTotals(bill) {
 }
 
 function updatePaymentTotal() {
-  const cash = parseFloat(document.getElementById('cash-input').value) || 0;
-  const upi  = parseFloat(document.getElementById('upi-input').value) || 0;
-  document.getElementById('payment-total-display').textContent = `₹${(cash + upi).toFixed(2)}`;
+  const cash  = parseFloat(document.getElementById('cash-input').value) || 0;
+  const upi   = parseFloat(document.getElementById('upi-input').value) || 0;
+  const total = cash + upi;
+  document.getElementById('payment-total-display').textContent = `₹${total.toFixed(2)}`;
+
+  const grand = parseFloat(selectedOrder ? selectedOrder.grand_total : 0);
+  let changeBox = document.getElementById('cash-change-box');
+  if (!changeBox) {
+    changeBox = document.createElement('div');
+    changeBox.id = 'cash-change-box';
+    changeBox.style.cssText = 'margin-top:10px; padding:10px 12px; border-radius:8px; font-weight:800; font-size:14px; text-align:center; transition:all .2s;';
+    const parent = document.getElementById('payment-order-ref').parentNode;
+    parent.appendChild(changeBox);
+  }
+
+  if (total > grand + 0.005) {
+    const change = total - grand;
+    changeBox.style.display = 'block';
+    changeBox.style.background = '#E8F5E9';
+    changeBox.style.color = '#2E7D32';
+    changeBox.style.border = '1.5px solid #A5D6A7';
+    changeBox.innerHTML = `💵 Change to Return to Customer: <span style="font-size:16px;">₹${change.toFixed(2)}</span>`;
+  } else if (total > 0 && total < grand - 0.005) {
+    const due = grand - total;
+    changeBox.style.display = 'block';
+    changeBox.style.background = '#FFF3E0';
+    changeBox.style.color = '#E65100';
+    changeBox.style.border = '1.5px solid #FFCC80';
+    changeBox.innerHTML = `⚠️ Remaining Due: ₹${due.toFixed(2)}`;
+  } else {
+    changeBox.style.display = 'none';
+  }
 }
 
 function renderActionButtons(status, billId) {
@@ -470,6 +549,15 @@ function closeOrderModal() {
 // Auto-refresh every 30 seconds
 setInterval(loadOrders, 30000);
 loadOrders();
+
+function showQR() {
+  const modal = document.getElementById('qr-modal');
+  modal.style.display = 'flex';
+}
+function hideQR() {
+  document.getElementById('qr-modal').style.display = 'none';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideQR(); closeOrderModal(); } });
 </script>
 </body>
 </html>

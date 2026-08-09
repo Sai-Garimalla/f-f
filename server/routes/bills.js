@@ -71,14 +71,17 @@ router.get('/customer/:phone', async (req, res) => {
 });
 
 // ── GET list of bills with filters + ordering ──
+// ── GET list of bills with filters + ordering ──
 router.get('/', async (req, res) => {
   try {
-    const page   = parseInt(req.query.page) || 1;
-    const limit  = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
-    const search = req.query.search || '';
-    const date   = req.query.date || '';
-    const status = req.query.status || 'completed';
+    const page           = parseInt(req.query.page) || 1;
+    const limit          = parseInt(req.query.limit) || 20;
+    const offset         = (page - 1) * limit;
+    const search         = req.query.search || '';
+    const date           = req.query.date || '';
+    const status         = req.query.status || 'completed';
+    const tokenPrefix    = req.query.token_prefix || '';
+    const paymentStatus  = req.query.payment_status || '';
 
     let where = 'WHERE b.status = ?';
     const params = [status];
@@ -91,6 +94,24 @@ router.get('/', async (req, res) => {
       where += ' AND DATE(b.created_at) = ?';
       params.push(date);
     }
+    if (tokenPrefix) {
+      where += ' AND b.token_prefix = ?';
+      params.push(tokenPrefix);
+    }
+
+    if (paymentStatus === 'paid') {
+      where += ' AND (COALESCE(b.cash_collected,0) + COALESCE(b.upi_collected,0)) >= b.grand_total';
+    } else if (paymentStatus === 'unpaid') {
+      where += ' AND (COALESCE(b.cash_collected,0) + COALESCE(b.upi_collected,0)) = 0';
+    } else if (paymentStatus === 'partial') {
+      where += ' AND (COALESCE(b.cash_collected,0) + COALESCE(b.upi_collected,0)) > 0 AND (COALESCE(b.cash_collected,0) + COALESCE(b.upi_collected,0)) < b.grand_total';
+    } else if (paymentStatus === 'overpaid') {
+      where += ' AND (COALESCE(b.cash_collected,0) + COALESCE(b.upi_collected,0)) > (b.grand_total + 0.005)';
+    } else if (paymentStatus === 'change_unsettled') {
+      where += ' AND (COALESCE(b.cash_collected,0) + COALESCE(b.upi_collected,0)) > (b.grand_total + 0.005) AND COALESCE(b.change_settled, 0) = 0';
+    } else if (paymentStatus === 'change_settled') {
+      where += ' AND (COALESCE(b.cash_collected,0) + COALESCE(b.upi_collected,0)) > (b.grand_total + 0.005) AND COALESCE(b.change_settled, 0) = 1';
+    }
 
     const countSql = `SELECT COUNT(*) AS total FROM bills b ${where}`;
     const [countResult] = await pool.execute(countSql, params);
@@ -100,7 +121,7 @@ router.get('/', async (req, res) => {
              b.customer_name, b.customer_phone, b.order_type, b.status,
              b.grand_total, b.created_at, u.full_name AS cashier_name,
              b.delivery_status, b.packing_status, b.cash_collected, b.upi_collected,
-             b.delivered_at, b.assigned_delivery_boy
+             b.delivered_at, b.assigned_delivery_boy, b.change_settled
       FROM bills b
       LEFT JOIN users u ON b.created_by = u.id
       ${where}
@@ -130,6 +151,33 @@ router.get('/:billId', async (req, res) => {
     if (!bills.length) return res.status(404).json({ error: 'Bill not found.' });
     const [items] = await pool.execute('SELECT * FROM bill_items WHERE bill_id=? ORDER BY id', [req.params.billId]);
     res.json({ bill: bills[0], items });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── POST mark/toggle change settled status ──
+router.post('/:billId/settle-change', async (req, res) => {
+  try {
+    // Only admin or staff can settle extra change
+    if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+      return res.status(403).json({ error: 'Access denied. Only admin or staff can settle extra change.' });
+    }
+
+    const { settled } = req.body;
+    let newSettled = 1;
+    if (settled !== undefined) {
+      newSettled = settled ? 1 : 0;
+    } else {
+      // Toggle if not specified
+      const [current] = await pool.execute('SELECT change_settled FROM bills WHERE bill_id=?', [req.params.billId]);
+      if (!current.length) return res.status(404).json({ error: 'Bill not found' });
+      newSettled = current[0].change_settled ? 0 : 1;
+    }
+
+    const [result] = await pool.execute(
+      "UPDATE bills SET change_settled=? WHERE bill_id=?", [newSettled, req.params.billId]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Bill not found' });
+    res.json({ success: true, change_settled: newSettled });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

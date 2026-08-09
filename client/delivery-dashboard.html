@@ -89,7 +89,33 @@
       <div id="recent-list"><div class="no-data">⏳ Loading…</div></div>
     </div>
 
+    <!-- QR Code for Payment -->
+    <div style="margin:0 14px 14px; background:linear-gradient(135deg,#1a1a2e,#16213e); border-radius:14px; overflow:hidden; border:1.5px solid #FF8F00;">
+      <div style="padding:12px 14px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:13px; font-weight:800; color:#FF8F00;">📱 Payment QR Code</div>
+          <div style="font-size:11px; color:#aaa; margin-top:2px;">Show to customer for UPI payment</div>
+        </div>
+        <button onclick="showQR()" style="background:linear-gradient(135deg,#FF8F00,#E65100); color:#fff; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:800; cursor:pointer; transition:all .15s;">
+          🔍 Show QR
+        </button>
+      </div>
+    </div>
+
     <button class="refresh-btn" onclick="loadStats()">🔄 Refresh</button>
+  </div>
+</div>
+
+<!-- QR Modal -->
+<div id="qr-modal" onclick="hideQR()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center; flex-direction:column; padding:20px;">
+  <div onclick="event.stopPropagation()" style="background:#fff; border-radius:20px; padding:24px; max-width:340px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <div style="font-size:16px; font-weight:800; color:#E65100; margin-bottom:4px;">📱 Scan to Pay</div>
+    <div style="font-size:12px; color:#8D6E63; margin-bottom:16px;">Use any UPI app — GPay, PhonePe, Paytm</div>
+    <img src="assets/payment_qr.png" alt="Payment QR" style="width:100%; max-width:280px; border-radius:12px; border:2px solid #FFE0B2;" onerror="this.style.display='none'; document.getElementById('qr-fallback').style.display='block'">
+    <div id="qr-fallback" style="display:none; padding:40px; background:#FFF3E0; border-radius:12px; color:#E65100; font-size:14px; font-weight:700;">⚠️ QR not found.<br><span style="font-size:11px; color:#8D6E63; font-weight:400;">Add payment_qr.png to client/assets/</span></div>
+    <div style="margin-top:16px;">
+      <button onclick="hideQR()" style="background:#F5F5F5; border:none; border-radius:10px; padding:12px 28px; font-size:14px; font-weight:700; cursor:pointer; color:#555;">✕ Close</button>
+    </div>
   </div>
 </div>
 
@@ -146,6 +172,15 @@ async function loadStats() {
 
 loadStats();
 setInterval(loadStats, 30000);
+
+function showQR() {
+  const modal = document.getElementById('qr-modal');
+  modal.style.display = 'flex';
+}
+function hideQR() {
+  document.getElementById('qr-modal').style.display = 'none';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideQR(); });
 </script>
 </body>
 </html>

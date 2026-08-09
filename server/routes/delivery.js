@@ -17,11 +17,15 @@ router.get('/orders', requireDeliveryBoy, async (req, res) => {
     const role = req.user.role;
     const isDeliveryBoy = role === 'delivery_boy';
 
-    let where = `WHERE (b.order_type LIKE '%Delivery%' OR b.order_type LIKE '%Takeaway%') AND b.status = 'completed'`;
+    // Delivery boys only see Delivery orders (not Takeaway/Dine-in)
+    // Admin/Staff can see all
+    let where = isDeliveryBoy
+      ? `WHERE b.order_type LIKE '%Delivery%' AND b.status = 'completed'`
+      : `WHERE (b.order_type LIKE '%Delivery%' OR b.order_type LIKE '%Takeaway%') AND b.status = 'completed'`;
     const params = [];
 
     if (isDeliveryBoy) {
-      // Delivery boys see: undelivered orders OR orders assigned to them
+      // Delivery boys see: undelivered Delivery orders OR Delivery orders assigned/delivered by them
       where += ` AND (b.delivery_status IN ('pending','preparing','ready','picked_up') OR b.delivered_by = ?)`;
       params.push(req.user.id);
     }
@@ -156,7 +160,7 @@ router.get('/boys', requireAdminOrStaff, async (req, res) => {
 // KITCHEN / KOT ROUTES
 // ─────────────────────────────────────────────
 
-// GET /api/delivery/kitchen/orders — kitchen view: today's orders with packing status
+// GET /api/delivery/kitchen/orders — kitchen view: today's Delivery + Takeaway orders (NOT Dine-in)
 router.get('/kitchen/orders', requireKitchen, async (req, res) => {
   try {
     const date = req.query.date || new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -168,6 +172,7 @@ router.get('/kitchen/orders', requireKitchen, async (req, res) => {
        FROM bills b
        LEFT JOIN users u ON b.created_by = u.id
        WHERE DATE(CONVERT_TZ(b.created_at, '+00:00', '+05:30')) = ? AND b.status = 'completed'
+         AND (b.order_type LIKE '%Delivery%' OR b.order_type LIKE '%Takeaway%')
        ORDER BY b.created_at ASC`,
       [date]
     );

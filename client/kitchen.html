@@ -97,6 +97,20 @@
       <div class="sum-box"><div class="sum-num" id="cnt-packed">0</div><div class="sum-lbl">✅ Packed</div></div>
     </div>
 
+    <div class="filters" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 14px; background:#16213e; border-bottom:1px solid #E65100;">
+      <div style="display:flex; gap:4px; flex:1 1 200px;">
+        <input type="text" class="form-control" id="kitchen-search-input" placeholder="🔍 Find Token, Order #, Item, Customer…" oninput="renderKOT()" style="flex:1; border-radius:8px; padding:6px 12px; border:1px solid #333; background:#0f3460; color:#fff;">
+        <button class="btn btn-primary" onclick="renderKOT()" style="padding:6px 14px; font-weight:700; border-radius:8px; background:linear-gradient(135deg,#E65100,#FF8F00); border:none; color:#fff;">Find</button>
+      </div>
+      <select id="kitchen-prefix-filter" class="form-control" onchange="renderKOT()" style="max-width:180px; border-radius:8px; padding:6px 10px; border:1px solid #333; background:#0f3460; color:#fff;">
+        <option value="">All Order Types</option>
+        <option value="DM">DM — Delivery Morning</option>
+        <option value="DE">DE — Delivery Evening</option>
+        <option value="TM">TM — Takeaway Morning</option>
+        <option value="TE">TE — Takeaway Evening</option>
+      </select>
+    </div>
+
     <div class="pack-tabs">
       <button class="pack-tab active" data-filter="pending" onclick="filterKOT('pending', this)">⏳ Pending</button>
       <button class="pack-tab" data-filter="packing" onclick="filterKOT('packing', this)">🔥 Packing</button>
@@ -161,11 +175,30 @@ function filterKOT(filter, btn) {
 
 async function renderKOT() {
   const list = document.getElementById('kot-list');
+  const searchInput = document.getElementById('kitchen-search-input');
+  const prefixFilter = document.getElementById('kitchen-prefix-filter');
+  const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  const pfx = prefixFilter ? prefixFilter.value : '';
+
   let orders = currentFilter === 'all' ? allOrders : allOrders.filter(o => o.packing_status === currentFilter);
 
+  if (pfx) {
+    orders = orders.filter(o => o.token_prefix === pfx);
+  }
+
+  if (q) {
+    orders = orders.filter(o => {
+      const token = `#${o.token_prefix || ''}${o.token_number}`.toLowerCase();
+      const name  = (o.customer_name || '').toLowerCase();
+      const phone = (o.customer_phone || '').toLowerCase();
+      const bill  = (o.bill_number || '').toLowerCase();
+      const items = (o._items || []).map(i => i.item_name).join(' ').toLowerCase();
+      return token.includes(q) || name.includes(q) || phone.includes(q) || bill.includes(q) || items.includes(q);
+    });
+  }
+
   if (!orders.length) {
-    const msgs = { pending: 'No pending orders! 🎉', packing: 'Nothing being packed right now.', packed: 'No packed orders yet.', all: 'No orders today yet.' };
-    list.innerHTML = `<div class="no-orders"><div class="icon">${currentFilter === 'packed' ? '✅' : '🍳'}</div><p>${msgs[currentFilter] || ''}</p></div>`;
+    list.innerHTML = `<div class="no-orders"><div class="icon">🍳</div><p>No KOT orders matching your filters</p></div>`;
     return;
   }
 

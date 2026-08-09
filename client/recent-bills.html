@@ -200,7 +200,10 @@ async function viewBill(billId) {
           <thead><tr><th>Item</th><th>Code</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
           <tbody>${items.map(i => `
             <tr>
-              <td>${i.item_name}${i.is_manual ? ' <span class="badge badge-info">Manual</span>' : ''}</td>
+              <td>
+                ${i.item_name}${i.is_manual ? ' <span class="badge badge-info">Manual</span>' : ''}
+                ${i.item_note ? `<div style="font-size:10px; color:#E65100; margin-top:2px;">Note: ${i.item_note}</div>` : ''}
+              </td>
               <td style="font-size:10px">${i.item_code || '—'}</td>
               <td>${i.quantity}</td>
               <td>${formatCurrency(i.unit_price)}</td>

@@ -177,6 +177,7 @@ async function buildKOT(bill, items, settings) {
 
   for (const item of items) {
     k += item.item_name.padEnd(41).slice(0, 41) + String(item.quantity).padStart(7) + LF;
+    if (item.item_note) k += '  -> ' + item.item_note + LF;
   }
 
   k += DLINE + LF + LF + LF + CUT;
@@ -223,6 +224,7 @@ async function buildCounterChecklist(bill, items, settings) {
     if (item.quantity > 1) {
       c += '    @ Rs.' + parseFloat(item.unit_price).toFixed(2) + ' x ' + item.quantity + LF;
     }
+    if (item.item_note) c += '    Note: ' + item.item_note + LF;
     c += SLINE + LF;
   }
 
@@ -290,8 +292,8 @@ router.post('/', async (req, res) => {
 
     for (const item of items) {
       await conn.execute(
-        'INSERT INTO bill_items (bill_id, item_code, item_name, quantity, unit_price, line_total, is_manual) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [billId, item.item_code || null, item.item_name, item.quantity, item.unit_price, item.line_total, item.is_manual ? 1 : 0]
+        'INSERT INTO bill_items (bill_id, item_code, item_name, quantity, unit_price, line_total, is_manual, item_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [billId, item.item_code || null, item.item_name, item.quantity, item.unit_price, item.line_total, item.is_manual ? 1 : 0, item.item_note || null]
       );
     }
 

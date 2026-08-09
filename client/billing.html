@@ -550,6 +550,9 @@ function renderBill() {
         <span class="cart-unit-price">× ${item.quantity} = ${formatCurrency(item.line_total)}</span>
         <button class="cart-remove-btn" onclick="removeItem(${i})" title="Remove">✕</button>
       </div>
+      <div style="margin-top:6px;">
+        <input type="text" class="form-control" style="font-size:11px; padding:4px 8px; height:26px; border-color:#FFE0B2; background:#FFF;" placeholder="✏️ Note for this item (e.g. spicy)" value="${item.item_note || ''}" onchange="changeItemNote(${i},this.value)">
+      </div>
     </div>`).join('');
   updateTotals();
 }
@@ -564,6 +567,10 @@ function changePrice(i, val) {
   billItems[i].unit_price = parseFloat(val) || 0;
   billItems[i].line_total = billItems[i].quantity * billItems[i].unit_price;
   renderBill();
+}
+
+function changeItemNote(i, val) {
+  billItems[i].item_note = val.trim();
 }
 
 function removeItem(i) { billItems.splice(i, 1); renderBill(); }
@@ -952,15 +959,16 @@ function renderPreviewEditList() {
   const el = document.getElementById('preview-edit-list');
   if (!el) return;
   el.innerHTML = billItems.map((item, i) => `
-    <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #FFE0B2">
-      <span style="flex:1;font-size:12px;color:#3E2000;font-weight:600">${item.item_name}</span>
-      <input type="number" value="${item.quantity}" min="1" style="width:46px;height:28px;border:1px solid #FFCC80;border-radius:5px;text-align:center;font-size:12px;background:#FFFDE7;color:#3E2000"
-        onchange="previewChangeQty(${i}, this.value)">
-      <span style="font-size:11px;color:#8D6E63">× ₹</span>
-      <input type="number" value="${item.unit_price.toFixed(2)}" min="0" step="0.01" style="width:70px;height:28px;border:1px solid #FFCC80;border-radius:5px;text-align:right;font-size:12px;background:#FFFDE7;color:#3E2000"
-        onchange="previewChangePrice(${i}, this.value)">
-      <span style="font-size:12px;font-weight:700;color:#E65100;min-width:55px;text-align:right">₹${item.line_total.toFixed(2)}</span>
-      <button onclick="previewRemoveItem(${i})" style="width:24px;height:24px;border:1px solid #C62828;background:rgba(198,40,40,0.08);border-radius:5px;cursor:pointer;color:#C62828;font-size:13px">✕</button>
+    <div style="display:flex; flex-direction:column; padding:5px 0; border-bottom:1px solid #FFE0B2;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="flex:1;font-size:12px;color:#3E2000;font-weight:600">${item.item_name}</span>
+        <input type="number" value="${item.quantity}" min="1" style="width:46px;height:28px;border:1px solid #FFCC80;border-radius:5px;text-align:center;font-size:12px;background:#FFFDE7;color:#3E2000" onchange="previewChangeQty(${i}, this.value)">
+        <span style="font-size:11px;color:#8D6E63">× ₹</span>
+        <input type="number" value="${item.unit_price.toFixed(2)}" min="0" step="0.01" style="width:70px;height:28px;border:1px solid #FFCC80;border-radius:5px;text-align:right;font-size:12px;background:#FFFDE7;color:#3E2000" onchange="previewChangePrice(${i}, this.value)">
+        <span style="font-size:12px;font-weight:700;color:#E65100;min-width:55px;text-align:right">₹${item.line_total.toFixed(2)}</span>
+        <button onclick="previewRemoveItem(${i})" style="width:24px;height:24px;border:1px solid #C62828;background:rgba(198,40,40,0.08);border-radius:5px;cursor:pointer;color:#C62828;font-size:13px">✕</button>
+      </div>
+      <input type="text" class="form-control" style="margin-top:4px; font-size:11px; padding:2px 6px; height:24px;" placeholder="✏️ Note for this item" value="${item.item_note || ''}" onchange="previewChangeItemNote(${i}, this.value)">
     </div>`).join('');
 }
 
@@ -976,6 +984,10 @@ function previewChangePrice(i, val) {
 }
 function previewRemoveItem(i) {
   billItems.splice(i, 1);
+  buildPreviews(); renderBill();
+}
+function previewChangeItemNote(i, val) {
+  billItems[i].item_note = val.trim();
   buildPreviews(); renderBill();
 }
 function previewAddItem() {

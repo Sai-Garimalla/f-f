@@ -97,9 +97,13 @@ async function initDB() {
         unit_price DECIMAL(10,2) NOT NULL,
         line_total DECIMAL(10,2) NOT NULL,
         is_manual TINYINT(1) DEFAULT 0,
+        item_note VARCHAR(255),
         FOREIGN KEY (bill_id) REFERENCES bills(bill_id)
       )
     `);
+    
+    // Add item_note if missing
+    try { await conn.execute("ALTER TABLE bill_items ADD COLUMN IF NOT EXISTS item_note VARCHAR(255)"); } catch(e) {}
 
     // Settings table
     await conn.execute(`

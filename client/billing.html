@@ -434,11 +434,18 @@ async function loadMenu() {
   } catch(e) { showToast('Failed to load menu: ' + e.message, 'error'); }
 }
 
-function renderMenuGrid(search='') {
+function renderMenuGrid(searchStr) {
+  const search = typeof searchStr === 'string' ? searchStr : document.getElementById('menu-search').value;
   const grid = document.getElementById('menu-grid');
   let filtered = menuItems;
   if (activeCategory) filtered = filtered.filter(i => i.category === activeCategory);
-  if (search) filtered = filtered.filter(i => i.item_name.toLowerCase().includes(search.toLowerCase()) || i.item_code.toLowerCase().includes(search.toLowerCase()));
+  if (search) {
+    const s = search.toLowerCase();
+    filtered = filtered.filter(i => 
+      (i.item_name && i.item_name.toLowerCase().includes(s)) || 
+      (i.item_code && String(i.item_code).toLowerCase().includes(s))
+    );
+  }
   if (!filtered.length) { grid.innerHTML = '<div style="grid-column:span 2;padding:30px;text-align:center;color:var(--text-muted)">No items found</div>'; return; }
   grid.innerHTML = filtered.map(item => {
     const existing = billItems.find(b => b.item_code === item.item_code && !b.is_manual);
@@ -804,14 +811,14 @@ function npAdd() {
   const searchInput = document.getElementById('menu-search');
   const code = searchInput.value.trim().toLowerCase();
   if (!code) return;
-  const item = menuItems.find(m => String(m.item_code).toLowerCase() === code);
+  const item = menuItems.find(m => String(m.item_code).toLowerCase() === code || (m.item_name && m.item_name.toLowerCase() === code));
   if (item) {
-    addItemToBill(item);
+    updateMenuItemQty(item.item_code, 1);
     searchInput.value = '';
     const e = new Event('input'); searchInput.dispatchEvent(e);
     showToast(`Added ${item.item_name}`, 'success');
   } else {
-    showToast('Code not found', 'error');
+    showToast('Code or item not found', 'error');
   }
 }
 

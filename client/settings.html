@@ -108,6 +108,48 @@
         <div style="font-size:12px;color:var(--text-muted);margin-top:8px;padding:10px;background:var(--surface2);border-radius:8px">
           ℹ️ <strong>Setup:</strong> Connect TVS RP3230 via Wi-Fi or USB-to-Network adapter. Configure the printer's IP in the same network subnet. Port 9100 is the standard RAW print port.
         </div>
+        <!-- Test print buttons -->
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-secondary" id="test-cust-btn" onclick="testPrint('customer')">🖨️ Test Customer Printer</button>
+          <button class="btn btn-secondary" id="test-kit-btn"  onclick="testPrint('kitchen')">🖨️ Test Kitchen Printer</button>
+        </div>
+        <div id="test-print-result" style="margin-top:10px"></div>
+      </div>
+
+      <!-- Test Accounts Reference -->
+      <div class="card settings-section" style="border:1.5px solid #E65100;">
+        <h3>🧪 Test Login Accounts</h3>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">These accounts are auto-created on first startup for testing. Change passwords after going live.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+          <div style="background:linear-gradient(135deg,#FFF3E0,#FFE0B2);border-radius:10px;padding:12px;border:1px solid #FFCC80">
+            <div style="font-size:10px;font-weight:700;color:#E65100">🔑 TEST ADMIN</div>
+            <div style="font-size:13px;font-weight:700;color:#3E2000;margin:4px 0">testadmin</div>
+            <div style="font-size:11px;color:#8D6E63">Pass: test123</div>
+          </div>
+          <div style="background:#E8F5E9;border-radius:10px;padding:12px;border:1px solid #A5D6A7">
+            <div style="font-size:10px;font-weight:700;color:#2E7D32">👨‍🍳 STAFF</div>
+            <div style="font-size:13px;font-weight:700;color:#3E2000;margin:4px 0">teststaff</div>
+            <div style="font-size:11px;color:#8D6E63">Pass: test123</div>
+          </div>
+          <div style="background:#F3E5F5;border-radius:10px;padding:12px;border:1px solid #CE93D8">
+            <div style="font-size:10px;font-weight:700;color:#7B1FA2">🍳 KITCHEN</div>
+            <div style="font-size:13px;font-weight:700;color:#3E2000;margin:4px 0">testkitchen</div>
+            <div style="font-size:11px;color:#8D6E63">Pass: test123</div>
+          </div>
+          <div style="background:#E3F2FD;border-radius:10px;padding:12px;border:1px solid #90CAF9">
+            <div style="font-size:10px;font-weight:700;color:#1565C0">🛵 DELIVERY 1</div>
+            <div style="font-size:13px;font-weight:700;color:#3E2000;margin:4px 0">testdel1</div>
+            <div style="font-size:11px;color:#8D6E63">Pass: test123</div>
+          </div>
+          <div style="background:#E3F2FD;border-radius:10px;padding:12px;border:1px solid #90CAF9">
+            <div style="font-size:10px;font-weight:700;color:#1565C0">🛵 DELIVERY 2</div>
+            <div style="font-size:13px;font-weight:700;color:#3E2000;margin:4px 0">testdel2</div>
+            <div style="font-size:11px;color:#8D6E63">Pass: test123</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:8px 12px;background:#FFEBEE;border-radius:8px;border:1px solid #EF9A9A;font-size:11px;color:#C62828">
+          ⚠️ <strong>Security:</strong> Please change all passwords before going live!
+        </div>
       </div>
     </div>
   </div>
@@ -158,6 +200,34 @@ async function saveSettings() {
     showToast('Settings saved!', 'success');
   } catch(e) { showToast(e.message, 'error'); }
   finally { btn.disabled = false; btn.textContent = '💾 Save Settings'; }
+}
+
+async function testPrint(printer) {
+  const btnId = printer === 'kitchen' ? 'test-kit-btn' : 'test-cust-btn';
+  const btn = document.getElementById(btnId);
+  const resultEl = document.getElementById('test-print-result');
+  btn.disabled = true; btn.textContent = '⏳ Sending…';
+  resultEl.innerHTML = '';
+  try {
+    const data = await apiFetch('/delivery/test-print', {
+      method: 'POST', body: JSON.stringify({ printer })
+    });
+    if (data.printer_ip) {
+      resultEl.innerHTML = `<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:10px 14px;font-size:12px;color:#2E7D32;margin-top:6px">
+        ✅ Test print data ready for <strong>${printer === 'kitchen' ? 'Kitchen' : 'Customer'}</strong> printer (${data.printer_ip}:${data.printer_port}).
+        <br>The printer will receive the job via MQTT/ESP32 bridge.
+      </div>`;
+    } else {
+      resultEl.innerHTML = `<div style="background:#FFF3E0;border:1px solid #FFCC80;border-radius:8px;padding:10px 14px;font-size:12px;color:#E65100;margin-top:6px">
+        ⚠️ No printer IP configured for ${printer === 'kitchen' ? 'Kitchen' : 'Customer'} printer. Please add the IP above and save.
+      </div>`;
+    }
+  } catch(e) {
+    resultEl.innerHTML = `<div style="background:#FFEBEE;border:1px solid #EF9A9A;border-radius:8px;padding:10px 14px;font-size:12px;color:#C62828;margin-top:6px">❌ Error: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = printer === 'kitchen' ? '🖨️ Test Kitchen Printer' : '🖨️ Test Customer Printer';
+  }
 }
 
 loadSettings();

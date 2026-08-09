@@ -5,36 +5,56 @@ const { pool } = require('../db/connection');
 const { authenticateToken } = require('../middleware/auth');
 router.use(authenticateToken);
 
-// ── Generate next token number ──
-async function getNextToken() {
+// ── IST time helper ──
+function getIST() {
+  return new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+}
+
+// ── Token prefix based on order type + IST time ──
+// DM = Delivery Morning (before 16:00 IST), DE = Delivery Evening (16:00+)
+// TM = Takeaway Morning, TE = Takeaway Evening
+// T  = Dine-in (no prefix differentiation) => changed to DIN
+function getTokenPrefix(orderType) {
+  const type = (orderType || '').toLowerCase();
+  const ist  = getIST();
+  const hour = ist.getHours(); // 0–23
+  const isMorning = hour < 16; // before 4 PM IST
+  if (type.includes('delivery'))  return isMorning ? 'DM' : 'DE';
+  if (type.includes('takeaway'))  return isMorning ? 'TM' : 'TE';
+  return 'DIN'; // Dine-in
+}
+
+// ── Generate next token for a given prefix ──
+async function getNextToken(prefix) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [settings] = await conn.execute(
-      "SELECT value FROM settings WHERE key_name = 'token_format'"
-    );
-    const format = settings[0]?.value || 'daily';
-    const today = new Date().toISOString().split('T')[0];
-    if (format === 'daily') {
-      await conn.execute(
-        'INSERT INTO token_counter (counter_date, last_token) VALUES (?, 1) ON DUPLICATE KEY UPDATE last_token = last_token + 1',
-        [today]
+    const pfx = prefix || 'DIN';
+    // For Dine-in 'DIN', respect token_format (daily vs continuous)
+    let dateKey;
+    if (pfx === 'DIN') {
+      const [settings] = await conn.execute(
+        "SELECT value FROM settings WHERE key_name = 'token_format'"
       );
-      const [counter] = await conn.execute(
-        'SELECT last_token FROM token_counter WHERE counter_date = ?', [today]
-      );
-      await conn.commit();
-      return counter[0].last_token;
+      const format = settings[0]?.value || 'daily';
+      dateKey = format === 'daily'
+        ? getIST().toISOString().split('T')[0]
+        : '0000-01-01';
     } else {
-      await conn.execute(
-        "INSERT INTO token_counter (counter_date, last_token) VALUES ('0000-01-01', 1) ON DUPLICATE KEY UPDATE last_token = last_token + 1"
-      );
-      const [counter] = await conn.execute(
-        "SELECT last_token FROM token_counter WHERE counter_date = '0000-01-01'"
-      );
-      await conn.commit();
-      return counter[0].last_token;
+      // Delivery/Takeaway tokens always reset daily
+      dateKey = getIST().toISOString().split('T')[0];
     }
+
+    await conn.execute(
+      'INSERT INTO token_counter (counter_date, prefix, last_token) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE last_token = last_token + 1',
+      [dateKey, pfx]
+    );
+    const [counter] = await conn.execute(
+      'SELECT last_token FROM token_counter WHERE counter_date = ? AND prefix = ?',
+      [dateKey, pfx]
+    );
+    await conn.commit();
+    return counter[0].last_token;
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -43,11 +63,13 @@ async function getNextToken() {
   }
 }
 
-// ── Bill number: YYYYMMDD-TOKEN format ──
-function generateBillNumber(date, token) {
+// ── Bill number: YYYYMMDD-PREFIX+TOKEN format ──
+function generateBillNumber(date, prefix, token) {
   const d = date || new Date();
   const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
-  return `${dateStr}-${String(token).padStart(3, '0')}`;
+  const pfx = prefix || 'DIN';
+  const tokenPart = pfx + String(token).padStart(3, '0');
+  return `${dateStr}-${tokenPart}`;
 }
 
 // ── MQTT cloud print bridge ──
@@ -263,23 +285,26 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Bill must have at least one item.' });
     }
 
-    const token = token_number || await getNextToken();
+    const orderTypeVal = order_type || 'Dine-in';
+    const prefix = getTokenPrefix(orderTypeVal);
+    const token = token_number || await getNextToken(prefix);
     const now = new Date();
     const billStatus = status === 'draft' ? 'draft' : 'completed';
-    // Bill number: YYYYMMDD-TTT (date + zero-padded token)
-    const billNumber = generateBillNumber(now, token);
+    const billNumber = generateBillNumber(now, prefix, token);
+    // display string e.g. "DM3", "TE1", "DIN5"
+    const tokenDisplay = prefix + token;
 
     const [billResult] = await conn.execute(
       `INSERT INTO bills
-       (bill_number, token_number, customer_name, customer_phone, order_type, delivery_address, custom_note,
+       (bill_number, token_number, token_prefix, customer_name, customer_phone, order_type, delivery_address, custom_note,
         subtotal, delivery_enabled, delivery_charge,
         discount_enabled, discount_type, discount_value, discount_amount,
         grand_total, status, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        billNumber, token,
+        billNumber, token, prefix,
         customer_name || null, customer_phone || null,
-        order_type || 'Dine-in', delivery_address || null, custom_note || null,
+        orderTypeVal, delivery_address || null, custom_note || null,
         subtotal,
         delivery_enabled ? 1 : 0, delivery_charge || 0,
         discount_enabled ? 1 : 0, discount_type || 'fixed',
@@ -305,10 +330,11 @@ router.post('/', async (req, res) => {
     settingsRows.forEach(r => { settings[r.key_name] = r.value; });
 
     const bill = {
-      bill_id: billId, bill_number: billNumber, token_number: token,
+      bill_id: billId, bill_number: billNumber, token_number: token, token_prefix: prefix,
+      token_display: tokenDisplay,
       customer_name: customer_name || null,
       customer_phone: customer_phone || null,
-      order_type: order_type || 'Dine-in',
+      order_type: orderTypeVal,
       delivery_address: delivery_address || null,
       custom_note: custom_note || null,
       subtotal, delivery_enabled: delivery_enabled ? 1 : 0, delivery_charge: delivery_charge || 0,
@@ -371,6 +397,7 @@ router.post('/', async (req, res) => {
 
     res.json({
       success: true, bill_id: billId, bill_number: billNumber, token_number: token,
+      token_prefix: prefix, token_display: tokenDisplay,
       print_results: printResults, status: billStatus,
       receipt_b64: receiptB64, kot_b64: kotB64, checklist_b64: checklistB64
     });
@@ -425,17 +452,20 @@ router.put('/:billId', async (req, res) => {
 
     for (const item of items) {
       await conn.execute(
-        'INSERT INTO bill_items (bill_id, item_code, item_name, quantity, unit_price, line_total, is_manual) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [billId, item.item_code || null, item.item_name, item.quantity, item.unit_price, item.line_total, item.is_manual ? 1 : 0]
+        'INSERT INTO bill_items (bill_id, item_code, item_name, quantity, unit_price, line_total, is_manual, item_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [billId, item.item_code || null, item.item_name, item.quantity, item.unit_price, item.line_total, item.is_manual ? 1 : 0, item.item_note || null]
       );
     }
 
     await conn.commit();
 
-    // Fetch updated bill to print
+    // Fetch updated bill (includes token_prefix)
     const [bills] = await conn.execute('SELECT * FROM bills WHERE bill_id=?', [billId]);
     const billData = bills[0];
     billData.cashier_name = req.user.full_name || req.user.username;
+    const prefixStored = billData.token_prefix || 'DIN';
+    const tokenNum   = billData.token_number;
+    const tokenDisp  = prefixStored + tokenNum;
 
     // Fetch settings for printing
     const [settingsRows] = await pool.execute('SELECT key_name, value FROM settings');
@@ -493,7 +523,9 @@ router.put('/:billId', async (req, res) => {
     }
 
     res.json({
-      success: true, bill_id: billId, bill_number: billData.bill_number, token_number: billData.token_number,
+      success: true, bill_id: billId,
+      bill_number: billData.bill_number, token_number: tokenNum,
+      token_prefix: prefixStored, token_display: tokenDisp,
       print_results: printResults, status: billStatus,
       receipt_b64: receiptB64, kot_b64: kotB64, checklist_b64: checklistB64
     });

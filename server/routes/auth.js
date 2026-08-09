@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { pool } = require('../db/connection');
+const { pool, asyncLocalStorage } = require('../db/connection');
 
 // Check if any admin exists (for first-time setup)
 router.get('/setup-status', async (req, res) => {
@@ -44,42 +44,46 @@ router.post('/setup', async (req, res) => {
 
 // Login
 router.post('/login', async (req, res) => {
-  try {
-    const { identifier, password, rememberMe } = req.body;
-    if (!identifier || !password) {
-      return res.status(400).json({ error: 'Username/email and password are required.' });
-    }
-
-    const [rows] = await pool.execute(
-      "SELECT * FROM users WHERE (username=? OR email=?) AND status='active'",
-      [identifier, identifier]
-    );
-
-    if (rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials.' });
-    }
-
-    const user = rows[0];
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials.' });
-    }
-
-    const expiresIn = rememberMe ? '30d' : '24h';
-    const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role, full_name: user.full_name },
-      process.env.JWT_SECRET,
-      { expiresIn }
-    );
-
-    res.json({
-      success: true,
-      token,
-      user: { id: user.id, full_name: user.full_name, username: user.username, role: user.role }
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const { identifier, password, rememberMe } = req.body;
+  if (!identifier || !password) {
+    return res.status(400).json({ error: 'Username/email and password are required.' });
   }
+
+  const isTest = identifier.startsWith('test');
+
+  asyncLocalStorage.run({ isTest }, async () => {
+    try {
+      const [rows] = await pool.execute(
+        "SELECT * FROM users WHERE (username=? OR email=?) AND status='active'",
+        [identifier, identifier]
+      );
+
+      if (rows.length === 0) {
+        return res.status(401).json({ error: 'Invalid credentials.' });
+      }
+
+      const user = rows[0];
+      const validPassword = await bcrypt.compare(password, user.password_hash);
+      if (!validPassword) {
+        return res.status(401).json({ error: 'Invalid credentials.' });
+      }
+
+      const expiresIn = rememberMe ? '30d' : '24h';
+      const token = jwt.sign(
+        { id: user.id, username: user.username, role: user.role, full_name: user.full_name },
+        process.env.JWT_SECRET,
+        { expiresIn }
+      );
+
+      res.json({
+        success: true,
+        token,
+        user: { id: user.id, full_name: user.full_name, username: user.username, role: user.role }
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 });
 
 // Verify token

@@ -14,6 +14,8 @@
   .user-meta { font-size:11px; color:#8D6E63; margin-top:2px; }
   .badge-admin { background:#FFF3E0; color:#E65100; border:1px solid #FFCC80; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
   .badge-staff { background:#E8F5E9; color:#2E7D32; border:1px solid #A5D6A7; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+  .badge-delivery { background:#E3F2FD; color:#1565C0; border:1px solid #90CAF9; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+  .badge-kitchen { background:#F3E5F5; color:#7B1FA2; border:1px solid #CE93D8; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
   .badge-inactive { background:#FFEBEE; color:#C62828; border:1px solid #EF9A9A; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
 </style>
 </head>
@@ -66,6 +68,8 @@
         <label class="form-label">Role</label>
         <select id="m-role" class="form-control">
           <option value="staff">👨‍🍳 Staff (Order & Bill)</option>
+          <option value="kitchen">🍳 Kitchen (KOT & Packing)</option>
+          <option value="delivery_boy">🛵 Delivery Boy (Mobile)</option>
           <option value="admin">🔑 Admin (Full Access)</option>
         </select>
       </div>
@@ -109,7 +113,7 @@ async function loadUsers() {
           <div class="user-name">${u.full_name}</div>
           <div class="user-meta">@${u.username}${u.phone ? ' · 📞'+u.phone : ''}</div>
           <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-            <span class="${u.role==='admin'?'badge-admin':'badge-staff'}">${u.role==='admin'?'🔑 Admin':'👨‍🍳 Staff'}</span>
+            <span class="${u.role==='admin'?'badge-admin':(u.role==='delivery_boy'?'badge-delivery':(u.role==='kitchen'?'badge-kitchen':'badge-staff'))}">${u.role==='admin'?'🔑 Admin':(u.role==='delivery_boy'?'🛵 Delivery Boy':(u.role==='kitchen'?'🍳 Kitchen':'👨‍🍳 Staff'))}</span>
             ${u.status==='inactive'?'<span class="badge-inactive">Inactive</span>':''}
           </div>
         </div>

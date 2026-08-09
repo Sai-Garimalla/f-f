@@ -24,7 +24,7 @@ router.post('/', requireAdmin, async (req, res) => {
     const hash = await bcrypt.hash(password, 12);
     const [result] = await pool.execute(
       'INSERT INTO users (full_name, username, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)',
-      [full_name, username, email || null, phone || null, hash, role === 'admin' ? 'admin' : 'staff']
+      [full_name, username, email || null, phone || null, hash, ['admin','staff','delivery_boy','kitchen'].includes(role) ? role : 'staff']
     );
     res.json({ success: true, user_id: result.insertId });
   } catch (err) {
@@ -39,7 +39,7 @@ router.patch('/:id', requireAdmin, async (req, res) => {
     const { full_name, phone, status, role } = req.body;
     await pool.execute(
       'UPDATE users SET full_name=?, phone=?, status=?, role=? WHERE id=?',
-      [full_name, phone || null, status || 'active', role || 'staff', req.params.id]
+      [full_name, phone || null, status || 'active', ['admin','staff','delivery_boy','kitchen'].includes(role) ? role : 'staff', req.params.id]
     );
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }

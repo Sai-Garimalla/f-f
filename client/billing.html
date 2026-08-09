@@ -254,7 +254,7 @@
   </div>
 </div>
 
-<!-- Print Preview Modal (tabbed: Receipt / KOT / Checklist + editable cart) -->
+<!-- Print Preview Modal (tabbed: Receipt / KOT + editable cart) -->
 <div class="modal-overlay" id="preview-modal">
   <div class="modal" style="max-width:620px">
     <div class="modal-header">
@@ -263,15 +263,11 @@
     </div>
     <div class="modal-body" style="padding:0">
       <div class="prev-tabs">
-        <button class="prev-tab active" onclick="switchPreviewTab('receipt',this)">🧾 Receipt</button>
-        <button class="prev-tab" onclick="switchPreviewTab('kot',this)">🍳 KOT</button>
-        <button class="prev-tab" onclick="switchPreviewTab('checklist',this)">✅ Checklist</button>
+        <button class="prev-tab active" onclick="switchPreviewTab('receipt',this)">🧾 Invoice</button>
+        <button class="prev-tab" onclick="switchPreviewTab('checklist',this)">🍳 KOT</button>
       </div>
       <div class="prev-content active" id="prev-receipt" style="padding:12px">
         <pre id="preview-receipt-pre" style="font-family:monospace;font-size:12px;background:#FFFDE7;border:1px solid #FFCC80;padding:14px;border-radius:8px;overflow-x:auto;color:#3E2000;white-space:pre;line-height:1.5"></pre>
-      </div>
-      <div class="prev-content" id="prev-kot" style="padding:12px">
-        <pre id="preview-kot-pre" style="font-family:monospace;font-size:12px;background:#FFFDE7;border:1px solid #FFCC80;padding:14px;border-radius:8px;overflow-x:auto;color:#3E2000;white-space:pre;line-height:1.5"></pre>
       </div>
       <div class="prev-content" id="prev-checklist" style="padding:12px">
         <pre id="preview-checklist-pre" style="font-family:monospace;font-size:12px;background:#FFFDE7;border:1px solid #FFCC80;padding:14px;border-radius:8px;overflow-x:auto;color:#3E2000;white-space:pre;line-height:1.5"></pre>
@@ -290,13 +286,9 @@
     <div class="modal-footer" style="flex-direction:column; gap:10px; align-items:stretch;">
       <div style="font-size:12px; font-weight:700; color:#8D6E63; text-align:center;">📤 Choose what to print:</div>
       <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;" id="print-options-row">
-        <button class="btn btn-secondary btn-sm" onclick="confirmPrint('kot')">🍳 KOT Only</button>
         <button class="btn btn-secondary btn-sm" onclick="confirmPrint('receipt')">🧾 Invoice Only</button>
-        <button class="btn btn-secondary btn-sm print-check-opt" onclick="confirmPrint('checklist')">✅ Checklist Only</button>
-        <button class="btn btn-secondary btn-sm" onclick="confirmPrint('kot_receipt')">🍳+🧾 KOT + Invoice</button>
-        <button class="btn btn-secondary btn-sm print-check-opt" onclick="confirmPrint('kot_checklist')">🍳+✅ KOT + Checklist</button>
-        <button class="btn btn-secondary btn-sm print-check-opt" onclick="confirmPrint('receipt_checklist')">🧾+✅ Invoice + Checklist</button>
-        <button class="btn btn-primary btn-sm print-check-opt" onclick="confirmPrint('all')">🖨 All 3</button>
+        <button class="btn btn-secondary btn-sm print-check-opt" onclick="confirmPrint('checklist')">🍳 KOT Only</button>
+        <button class="btn btn-primary btn-sm print-check-opt" onclick="confirmPrint('receipt_checklist')">🧾+🍳 Invoice + KOT</button>
         <button class="btn btn-primary btn-sm" onclick="confirmPrint('save_only')">💾 Save (No Print)</button>
       </div>
       <button class="btn btn-secondary" style="border-color:#EF9A9A;color:#C62828" onclick="closePreviewModal()">✕ Cancel</button>
@@ -315,9 +307,8 @@
       <div style="font-size:20px;font-weight:800;color:#E65100;margin:8px 0" id="success-total"></div>
       <div id="print-status" style="margin-bottom:12px"></div>
       <div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap">
-        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('receipt')">🧾 Receipt</button>
-        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('kot')">🍳 KOT</button>
-        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('checklist')">✅ Checklist</button>
+        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('receipt')">🧾 Invoice</button>
+        <button class="btn btn-secondary btn-sm" onclick="reprintDocument('checklist')">🍳 KOT</button>
       </div>
       <div style="display:flex;gap:8px;justify-content:center">
         <button class="btn btn-secondary" onclick="closeSuccessModal()">New Bill</button>
@@ -941,7 +932,7 @@ function buildPreviews() {
   // ── RECEIPT preview ──
   let r = '        Fire & Flavour\n';
   r += LINE + '\n';
-  r += '          CUSTOMER RECEIPT\n';
+  r += '          CUSTOMER INVOICE\n';
   r += LINE + '\n';
   r += 'Bill No  : ' + previewBillNo + '\n';
   r += 'Date     : ' + dateStr + '\n';
@@ -955,6 +946,7 @@ function buildPreviews() {
   r += LINE + '\n';
   for (const item of billItems) {
     r += pad(item.item_name,24) + padL(item.quantity,4) + padL(item.unit_price.toFixed(2),9) + padL(item.line_total.toFixed(2),11) + '\n';
+    if (item.item_note) r += '  Note: ' + item.item_note + '\n';
   }
   r += LINE + '\n';
   r += pad('Subtotal',36) + padL(subtotal.toFixed(2),12) + '\n';
@@ -966,36 +958,14 @@ function buildPreviews() {
   r += '       Thank you! Visit again.\n';
   document.getElementById('preview-receipt-pre').textContent = r;
 
-  // ── KOT preview ──
-  let k = '        Fire & Flavour\n';
-  k += '     *** KITCHEN ORDER ***\n';
-  k += DLINE + '\n';
-  k += '           TOKEN\n';
-  k += '         [Assigned on Save]\n';
-  k += DLINE + '\n';
-  k += ('Date: ' + dateStr).padEnd(24).slice(0,24) + ('Time: ' + timeStr).padEnd(24).slice(0,24) + '\n';
-  k += 'Bill     : ' + previewBillNo + '\n';
-  k += 'Type     : ' + fullType + '\n';
-  if (custName)    k += 'Name     : ' + custName + '\n';
-  if (custPhone)   k += 'Ph       : ' + custPhone + '\n';
-  if (deliveryAddr) k += 'Addr     : ' + deliveryAddr + '\n';
-  if (customNote)  k += 'Note     : ' + customNote + '\n';
-  k += DLINE + '\n';
-  k += 'ITEM'.padEnd(41) + 'QTY'.padStart(7) + '\n';
-  k += DLINE + '\n';
-  for (const item of billItems) {
-    k += item.item_name.padEnd(41).slice(0,41) + String(item.quantity).padStart(7) + '\n';
-  }
-  k += DLINE + '\n';
-  document.getElementById('preview-kot-pre').textContent = k;
-
-  // ── CHECKLIST preview ──
+  // ── KOT preview (serves as both Checklist AND KOT) ──
   let c = '        Fire & Flavour\n';
-  c += '     *** COUNTER CHECKLIST ***\n';
+  c += '   *** COUNTER CHECKLIST / KOT ***\n';
   c += 'Pack & Verify each item before dispatch\n';
   c += DLINE + '\n';
   c += 'Bill No  : ' + previewBillNo + '\n';
   c += 'Date     : ' + dateStr + '  Time: ' + timeStr + '\n';
+  c += 'Token    : [Assigned on Save]\n';
   c += 'Type     : ' + fullType + '\n';
   if (custName)    c += 'Customer : ' + custName + '\n';
   if (custPhone)   c += 'Phone    : ' + custPhone + '\n';
@@ -1007,6 +977,7 @@ function buildPreviews() {
   for (const item of billItems) {
     c += '[ ] ' + pad(item.item_name,28) + padL(item.quantity,5) + padL(item.line_total.toFixed(2),11) + '\n';
     if (item.quantity > 1) c += '    @ Rs.' + item.unit_price.toFixed(2) + ' x ' + item.quantity + '\n';
+    if (item.item_note) c += '    Note: ' + item.item_note + '\n';
     c += LINE + '\n';
   }
   c += DLINE + '\n';
@@ -1073,14 +1044,10 @@ function previewAddItem() {
 function showPrintPreview() {
   if (!billItems.length) { showToast('Add items before saving.', 'warning'); return; }
   buildPreviews();
-
-  // Hide checklist options for Dine-in
-  const orderType = document.getElementById('order-type').value;
-  const isDineIn = orderType === 'Dine-in';
+  // Always show checklist/KOT options - it serves all order types now
   document.querySelectorAll('.print-check-opt').forEach(el => {
-    el.style.display = isDineIn ? 'none' : '';
+    el.style.display = '';
   });
-
   document.getElementById('preview-modal').classList.add('open');
 }
 
@@ -1221,7 +1188,7 @@ async function reprintDocument(type) {
   } catch (e) {
     showToast('❌ Print error: ' + e.message, 'error');
   } finally {
-    const labels = { receipt: '🧾 Receipt', kot: '🍳 KOT', checklist: '✅ Checklist', both: '🖨️ All' };
+    const labels = { receipt: '🧾 Receipt', kot: '🍳 KOT', checklist: '🍳 KOT', both: '🖨️ All' };
     btn.disabled = false; btn.textContent = labels[type] || '🖨️ Reprint';
   }
 }
@@ -1277,12 +1244,23 @@ async function loadEditBill(id) {
   try {
     const data = await apiFetch(`/bills/${id}`);
     const bill = data.bill;
-    billItems = data.items.map(i => ({...i, line_total: parseFloat(i.line_total), unit_price: parseFloat(i.unit_price)}));
+    // Restore all items including item_note
+    billItems = data.items.map(i => ({...i, line_total: parseFloat(i.line_total), unit_price: parseFloat(i.unit_price), item_note: i.item_note || ''}));
     document.getElementById('customer-name').value = bill.customer_name || '';
     document.getElementById('customer-phone').value = bill.customer_phone || '';
+    document.getElementById('custom-note').value = bill.custom_note || '';
+
+    // Restore order type + pills
     const parts = (bill.order_type || '').split(' | ');
-    document.getElementById('order-type').value = parts[0] || 'Dine-in';
-    updateOrderTypeFields();
+    const orderType = parts[0] || 'Dine-in';
+    document.getElementById('order-type').value = orderType;
+    document.querySelectorAll('.ot-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.type === orderType);
+    });
+    // Toggle table/location inputs
+    document.getElementById('order-table').style.display = orderType === 'Dine-in' ? 'block' : 'none';
+    document.getElementById('order-location').style.display = orderType === 'Delivery' ? 'block' : 'none';
+
     if (parts[1]) {
       const p2 = parts[1];
       if (p2.startsWith('Table: ')) document.getElementById('order-table').value = p2.replace('Table: ', '');
@@ -1291,23 +1269,28 @@ async function loadEditBill(id) {
         const opts = Array.from(sel.options).map(o=>o.value);
         const loc = p2.replace('Loc: ', '');
         if (opts.includes(loc)) sel.value = loc;
-        else { sel.value = 'Other'; toggleOtherLocation(); document.getElementById('order-location-other').value = loc; }
+        else { sel.value = 'Other'; toggleLocationOther(); document.getElementById('order-location-other').value = loc; }
       }
     }
+
     window.reservedToken = bill.token_number;
     window.editBillId = id;
-    
+
+    // Show token in header
+    document.getElementById('token-display').textContent = '#' + bill.token_number;
+
     deliveryEnabled = bill.delivery_enabled === 1;
     deliveryCharge = parseFloat(bill.delivery_charge) || 0;
     discountEnabled = bill.discount_enabled === 1;
     document.getElementById('discount-type').value = bill.discount_type || 'fixed';
     document.getElementById('discount-val').value = parseFloat(bill.discount_value) || 0;
-    document.getElementById('enable-delivery').checked = deliveryEnabled;
-    document.getElementById('enable-discount').checked = discountEnabled;
-    toggleDelivery(); toggleDiscount();
-    
+    document.getElementById('delivery-toggle').checked = deliveryEnabled;
+    document.getElementById('discount-toggle').checked = discountEnabled;
+    document.getElementById('delivery-opts').style.display = deliveryEnabled ? 'flex' : 'none';
+    document.getElementById('discount-opts').style.display = discountEnabled ? 'flex' : 'none';
+
     renderBill();
-    showToast('Loaded bill for editing.', 'success');
+    showToast(`Loaded Token #${bill.token_number} for editing.`, 'success');
   } catch(e) { showToast('Failed to load bill: ' + e.message, 'error'); }
 }
 

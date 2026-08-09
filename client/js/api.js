@@ -20,9 +20,27 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
-function authGuard() {
+function authGuard(allowedRoles) {
   const token = getToken();
   if (!token) { window.location.href = '/index.html'; return false; }
+  const user = getUser();
+  const currentPage = window.location.pathname;
+  if (allowedRoles) {
+    if (!user || !allowedRoles.includes(user.role)) {
+      if (user && user.role === 'delivery_boy') window.location.href = '/delivery.html';
+      else if (user && user.role === 'kitchen') window.location.href = '/kitchen.html';
+      else window.location.href = '/index.html';
+      return false;
+    }
+  } else {
+    // Default guard: redirect restricted roles to their portal
+    if (user && user.role === 'delivery_boy' && currentPage !== '/delivery.html') {
+      window.location.href = '/delivery.html'; return false;
+    }
+    if (user && user.role === 'kitchen' && currentPage !== '/kitchen.html') {
+      window.location.href = '/kitchen.html'; return false;
+    }
+  }
   return true;
 }
 
@@ -47,11 +65,44 @@ function showToast(message, type = 'success') {
 function initSidebar(activePage) {
   const user = getUser();
   const isAdmin = user && user.role === 'admin';
-  const sidebarHTML = `
-  <div class="sidebar-logo" style="text-align: center;">
-    <img src="/assets/logo.png" alt="F&F Logo" style="width: 80px; height: 80px; object-fit: contain; border-radius: 8px; margin-bottom: 8px;">
-    <h1>Fire & Flavour</h1>
-    <p>POS & Billing System</p>
+  const isDeliveryBoy = user && user.role === 'delivery_boy';
+  const isKitchen = user && user.role === 'kitchen';
+
+  let sidebarHTML;
+
+  if (isDeliveryBoy) {
+    sidebarHTML = `
+  <div class="sidebar-logo" style="text-align:center">
+    <img src="/assets/logo.png" alt="F&F" style="width:80px;height:80px;object-fit:contain;border-radius:8px;margin-bottom:8px">
+    <h1>Fire & Flavour</h1><p>Delivery Portal</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">Delivery</div>
+    <a href="/delivery.html" class="nav-link ${activePage==='delivery'?'active':''}"><span class="nav-icon">🛵</span> My Deliveries</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info"><div class="user-avatar">${user.full_name[0].toUpperCase()}</div><div><div class="user-name">${user.full_name}</div><div class="user-role">🛵 Delivery Boy</div></div></div>
+    <button class="btn-logout" onclick="logout()">🚪 Logout</button>
+  </div>`;
+  } else if (isKitchen) {
+    sidebarHTML = `
+  <div class="sidebar-logo" style="text-align:center">
+    <img src="/assets/logo.png" alt="F&F" style="width:80px;height:80px;object-fit:contain;border-radius:8px;margin-bottom:8px">
+    <h1>Fire & Flavour</h1><p>Kitchen Station</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">Kitchen</div>
+    <a href="/kitchen.html" class="nav-link ${activePage==='kitchen'?'active':''}"><span class="nav-icon">🍳</span> KOT / Packing</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info"><div class="user-avatar">${user.full_name[0].toUpperCase()}</div><div><div class="user-name">${user.full_name}</div><div class="user-role">🍳 Kitchen</div></div></div>
+    <button class="btn-logout" onclick="logout()">🚪 Logout</button>
+  </div>`;
+  } else {
+    sidebarHTML = `
+  <div class="sidebar-logo" style="text-align:center">
+    <img src="/assets/logo.png" alt="F&F" style="width:80px;height:80px;object-fit:contain;border-radius:8px;margin-bottom:8px">
+    <h1>Fire & Flavour</h1><p>POS & Billing System</p>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-label">Main</div>
@@ -65,12 +116,10 @@ function initSidebar(activePage) {
     ${isAdmin ? `<a href="/settings.html" class="nav-link ${activePage==='settings'?'active':''}"><span class="nav-icon">⚙️</span> Settings</a>` : ''}
   </nav>
   <div class="sidebar-footer">
-    <div class="user-info">
-      <div class="user-avatar">${user ? user.full_name[0].toUpperCase() : 'A'}</div>
-      <div><div class="user-name">${user ? user.full_name : 'Admin'}</div><div class="user-role">${user ? (user.role==='admin'?'🔑 Admin':'👨‍🍳 Staff') : ''}</div></div>
-    </div>
+    <div class="user-info"><div class="user-avatar">${user ? user.full_name[0].toUpperCase() : 'A'}</div><div><div class="user-name">${user ? user.full_name : 'Admin'}</div><div class="user-role">${user ? (user.role==='admin'?'🔑 Admin':'👨‍🍳 Staff') : ''}</div></div></div>
     <button class="btn-logout" onclick="logout()">🚪 Logout</button>
   </div>`;
+  }
 
   const sidebar = document.getElementById('sidebar');
   if (sidebar) sidebar.innerHTML = sidebarHTML;
@@ -94,15 +143,20 @@ function initSidebar(activePage) {
   }
   if (!document.getElementById('bottom-nav')) {
     const bn = document.createElement('div');
-    bn.id = 'bottom-nav';
-    bn.className = 'bottom-nav';
-    bn.innerHTML = `<nav>
-      ${isAdmin ? `<a href="/dashboard.html" class="bn-item ${activePage==='dashboard'?'active':''}"><span class="bn-icon">📊</span>Dash</a>` : ''}
-      <a href="/billing.html"   class="bn-item ${activePage==='billing'?'active':''}"><span class="bn-icon">🧾</span>Bill</a>
-      <a href="/recent-bills.html" class="bn-item ${activePage==='bills'?'active':''}"><span class="bn-icon">📋</span>Bills</a>
-      <a href="/customer-search.html" class="bn-item ${activePage==='customer-search'?'active':''}"><span class="bn-icon">🔍</span>Search</a>
-      <a href="/menu.html"      class="bn-item ${activePage==='menu'?'active':''}"><span class="bn-icon">🍽️</span>Menu</a>
-    </nav>`;
+    bn.id = 'bottom-nav'; bn.className = 'bottom-nav';
+    if (isDeliveryBoy) {
+      bn.innerHTML = `<nav><a href="/delivery.html" class="bn-item ${activePage==='delivery'?'active':''}"><span class="bn-icon">🛵</span>Deliveries</a></nav>`;
+    } else if (isKitchen) {
+      bn.innerHTML = `<nav><a href="/kitchen.html" class="bn-item ${activePage==='kitchen'?'active':''}"><span class="bn-icon">🍳</span>KOT</a></nav>`;
+    } else {
+      bn.innerHTML = `<nav>
+        ${isAdmin ? `<a href="/dashboard.html" class="bn-item ${activePage==='dashboard'?'active':''}"><span class="bn-icon">📊</span>Dash</a>` : ''}
+        <a href="/billing.html"   class="bn-item ${activePage==='billing'?'active':''}"><span class="bn-icon">🧾</span>Bill</a>
+        <a href="/recent-bills.html" class="bn-item ${activePage==='bills'?'active':''}"><span class="bn-icon">📋</span>Bills</a>
+        <a href="/customer-search.html" class="bn-item ${activePage==='customer-search'?'active':''}"><span class="bn-icon">🔍</span>Search</a>
+        <a href="/menu.html"      class="bn-item ${activePage==='menu'?'active':''}"><span class="bn-icon">🍽️</span>Menu</a>
+      </nav>`;
+    }
     document.body.appendChild(bn);
   }
 

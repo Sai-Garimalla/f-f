@@ -1,8 +1,11 @@
 const mysql = require('mysql2/promise');
 const path = require('path');
+const { AsyncLocalStorage } = require('async_hooks');
 require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 
-const pool = mysql.createPool({
+const asyncLocalStorage = new AsyncLocalStorage();
+
+const dbConfig = {
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT) || 4000,
   user: process.env.DB_USER,
@@ -13,10 +16,34 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-});
+};
+
+const mainPool = mysql.createPool(dbConfig);
+const testPool = mysql.createPool({ ...dbConfig, database: process.env.DB_NAME + '_test' });
+
+const pool = {
+  execute: (...args) => {
+    const store = asyncLocalStorage.getStore();
+    return (store && store.isTest ? testPool : mainPool).execute(...args);
+  },
+  query: (...args) => {
+    const store = asyncLocalStorage.getStore();
+    return (store && store.isTest ? testPool : mainPool).query(...args);
+  },
+  getConnection: () => {
+    const store = asyncLocalStorage.getStore();
+    return (store && store.isTest ? testPool : mainPool).getConnection();
+  }
+};
 
 async function initDB() {
-  const conn = await pool.getConnection();
+  await initSingleDB(mainPool);
+  await initSingleDB(testPool);
+  console.log('✅ Both Main and Test Databases initialized successfully');
+}
+
+async function initSingleDB(targetPool) {
+  const conn = await targetPool.getConnection();
   try {
     // Users table
     await conn.execute(`
@@ -27,7 +54,7 @@ async function initDB() {
         email VARCHAR(100) UNIQUE NOT NULL,
         phone VARCHAR(20),
         password_hash VARCHAR(255) NOT NULL,
-        role ENUM('admin','staff') DEFAULT 'admin',
+        role ENUM('admin','staff','delivery_boy','kitchen') DEFAULT 'admin',
         status ENUM('active','inactive') DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -35,6 +62,7 @@ async function initDB() {
     
     // Add missing columns to users table
     try { await conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)"); } catch(e) {}
+    try { await conn.execute("ALTER TABLE users MODIFY COLUMN role ENUM('admin','staff','delivery_boy','kitchen') DEFAULT 'admin'"); } catch(e) {}
 
     // Menu table
     await conn.execute(`
@@ -69,9 +97,18 @@ async function initDB() {
         discount_amount DECIMAL(10,2) DEFAULT 0,
         grand_total DECIMAL(10,2) DEFAULT 0,
         status ENUM('completed','draft','cancelled') DEFAULT 'completed',
+        token_prefix VARCHAR(5) DEFAULT 'T',
+        delivery_status ENUM('pending','preparing','ready','picked_up','delivered') DEFAULT 'pending',
+        packing_status ENUM('pending','packing','packed') DEFAULT 'pending',
+        cash_collected DECIMAL(10,2) DEFAULT 0,
+        upi_collected DECIMAL(10,2) DEFAULT 0,
+        delivered_by INT,
+        delivered_at TIMESTAMP NULL,
+        assigned_delivery_boy INT,
         created_by INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (created_by) REFERENCES users(id)
+        FOREIGN KEY (created_by) REFERENCES users(id),
+        FOREIGN KEY (delivered_by) REFERENCES users(id)
       )
     `);
 
@@ -82,6 +119,14 @@ async function initDB() {
       "ALTER TABLE bills ADD COLUMN IF NOT EXISTS delivery_address TEXT",
       "ALTER TABLE bills ADD COLUMN IF NOT EXISTS custom_note TEXT",
       "ALTER TABLE bills MODIFY COLUMN status ENUM('completed','draft','cancelled') DEFAULT 'completed'",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS token_prefix VARCHAR(5) DEFAULT 'T'",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS delivery_status ENUM('pending','preparing','ready','picked_up','delivered') DEFAULT 'pending'",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS packing_status ENUM('pending','packing','packed') DEFAULT 'pending'",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS cash_collected DECIMAL(10,2) DEFAULT 0",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS upi_collected DECIMAL(10,2) DEFAULT 0",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS delivered_by INT",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP NULL",
+      "ALTER TABLE bills ADD COLUMN IF NOT EXISTS assigned_delivery_boy INT",
     ];
     for (const sql of billAlters) {
       try { await conn.execute(sql); } catch(e) { /* column may already exist */ }
@@ -115,15 +160,20 @@ async function initDB() {
       )
     `);
 
-    // Token counter table
+    // Token counter table (supports prefix per order type)
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS token_counter (
         id INT AUTO_INCREMENT PRIMARY KEY,
         counter_date DATE NOT NULL,
+        prefix VARCHAR(5) NOT NULL DEFAULT 'T',
         last_token INT DEFAULT 0,
-        UNIQUE KEY unique_date (counter_date)
+        UNIQUE KEY unique_date_prefix (counter_date, prefix)
       )
     `);
+    // Migrate old token_counter rows (add prefix column if missing)
+    try { await conn.execute("ALTER TABLE token_counter ADD COLUMN IF NOT EXISTS prefix VARCHAR(5) NOT NULL DEFAULT 'T'"); } catch(e) {}
+    try { await conn.execute("ALTER TABLE token_counter DROP INDEX unique_date"); } catch(e) {}
+    try { await conn.execute("ALTER TABLE token_counter ADD UNIQUE KEY unique_date_prefix (counter_date, prefix)"); } catch(e) {}
 
     // Insert default settings if not exists
     const defaultSettings = [
@@ -162,10 +212,33 @@ async function initDB() {
       ['Fire & Flavour']
     );
 
+    // ── Seed test accounts (safe – skip if username exists) ──
+    const bcrypt = require('bcryptjs');
+    const testAccounts = [
+      { full_name: 'Main Admin',    username: 'admin',     email: 'admin@fnf.test',     password: 'admin123',   role: 'admin' },
+      { full_name: 'Test Admin',    username: 'testadmin', email: 'testadmin@fnf.test', password: 'test123',    role: 'admin' },
+      { full_name: 'Test Staff',    username: 'teststaff',     email: 'staff@fnf.test',     password: 'test123',    role: 'staff' },
+      { full_name: 'Kitchen KOT',   username: 'testkitchen',   email: 'kitchen@fnf.test',   password: 'test123',    role: 'kitchen' },
+      { full_name: 'Delivery Boy 1',username: 'testdel1',      email: 'delivery1@fnf.test', password: 'test123',    role: 'delivery_boy' },
+      { full_name: 'Delivery Boy 2',username: 'testdel2',      email: 'delivery2@fnf.test', password: 'test123',    role: 'delivery_boy' },
+    ];
+    for (const acct of testAccounts) {
+      const [ex] = await conn.execute('SELECT id FROM users WHERE username = ?', [acct.username]);
+      if (!ex.length) {
+        const hash = await bcrypt.hash(acct.password, 10);
+        try {
+          await conn.execute(
+            'INSERT INTO users (full_name, username, email, password_hash, role) VALUES (?,?,?,?,?)',
+            [acct.full_name, acct.username, acct.email, hash, acct.role]
+          );
+        } catch(e) { /* ignore duplicate */ }
+      }
+    }
+
     console.log('✅ Database initialized successfully');
   } finally {
     conn.release();
   }
 }
 
-module.exports = { pool, initDB };
+module.exports = { pool, initDB, asyncLocalStorage };

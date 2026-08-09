@@ -96,9 +96,11 @@ router.get('/', async (req, res) => {
     const [countResult] = await pool.execute(countSql, params);
 
     const listSql = `
-      SELECT b.bill_id, b.bill_number, b.token_number,
+      SELECT b.bill_id, b.bill_number, b.token_number, b.token_prefix,
              b.customer_name, b.customer_phone, b.order_type, b.status,
-             b.grand_total, b.created_at, u.full_name AS cashier_name
+             b.grand_total, b.created_at, u.full_name AS cashier_name,
+             b.delivery_status, b.packing_status, b.cash_collected, b.upi_collected,
+             b.delivered_at, b.assigned_delivery_boy
       FROM bills b
       LEFT JOIN users u ON b.created_by = u.id
       ${where}
@@ -118,8 +120,11 @@ router.get('/', async (req, res) => {
 router.get('/:billId', async (req, res) => {
   try {
     const [bills] = await pool.execute(
-      `SELECT b.*, u.full_name AS cashier_name FROM bills b
-       LEFT JOIN users u ON b.created_by = u.id WHERE b.bill_id = ?`,
+      `SELECT b.*, u.full_name AS cashier_name, du.full_name AS delivery_boy_name
+       FROM bills b
+       LEFT JOIN users u ON b.created_by = u.id
+       LEFT JOIN users du ON b.delivered_by = du.id
+       WHERE b.bill_id = ?`,
       [req.params.billId]
     );
     if (!bills.length) return res.status(404).json({ error: 'Bill not found.' });

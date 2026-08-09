@@ -264,13 +264,20 @@ document.querySelectorAll('.pp').forEach(btn => {
   });
 });
 
-function trendBadge(curr, prev, unit='') {
-  if (!prev || prev === 0) return '';
+function updateTrendBadge(curr, prev) {
+  const el = document.getElementById('k-sales-trend');
+  if (!el) return;
+  if (!prev || prev === 0) {
+    el.innerHTML = '';
+    el.className = 'kpi-trend';
+    return;
+  }
   const pct = ((curr - prev) / prev * 100).toFixed(1);
   const up = curr >= prev;
   const icon = up ? '▲' : '▼';
   const cls = up ? 'trend-up' : 'trend-down';
-  return `<span class="kpi-trend ${cls}">${icon} ${Math.abs(pct)}% vs prev</span>`;
+  el.innerHTML = `${icon} ${Math.abs(pct)}% vs prev`;
+  el.className = `kpi-trend ${cls}`;
 }
 
 function fmtHour(h) {
@@ -299,7 +306,7 @@ async function loadDashboard() {
     // KPIs
     document.getElementById('k-sales').textContent      = formatCurrency(d.total_sales);
     document.getElementById('k-sales-sub').textContent  = `${d.bill_count} completed bills`;
-    document.getElementById('k-sales-trend').outerHTML  = trendBadge(d.total_sales, d.prev_sales) || '<span id="k-sales-trend"></span>';
+    updateTrendBadge(d.total_sales, d.prev_sales);
     document.getElementById('k-cancelled-earn').textContent = formatCurrency(d.cancelled_earnings || 0);
     document.getElementById('k-cancelled-earn-sub').textContent = `${d.cancelled_count} order${d.cancelled_count !== 1 ? 's' : ''} lost`;
     document.getElementById('k-avg').textContent        = formatCurrency(d.avg_bill);

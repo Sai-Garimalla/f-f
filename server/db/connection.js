@@ -37,12 +37,12 @@ const pool = {
 };
 
 async function initDB() {
-  await initSingleDB(mainPool);
-  await initSingleDB(testPool);
+  await initSingleDB(mainPool, false);
+  await initSingleDB(testPool, true);
   console.log('✅ Both Main and Test Databases initialized successfully');
 }
 
-async function initSingleDB(targetPool) {
+async function initSingleDB(targetPool, isTest = false) {
   const conn = await targetPool.getConnection();
   try {
     // Users table
@@ -212,17 +212,22 @@ async function initSingleDB(targetPool) {
       ['Fire & Flavour']
     );
 
-    // ── Seed test accounts (safe – skip if username exists) ──
+    // ── Seed accounts (prod in main DB, test accounts in _test DB) ──
     const bcrypt = require('bcryptjs');
-    const testAccounts = [
-      { full_name: 'Main Admin',    username: 'admin',     email: 'admin@fnf.test',     password: 'admin123',   role: 'admin' },
-      { full_name: 'Test Admin',    username: 'testadmin', email: 'testadmin@fnf.test', password: 'test123',    role: 'admin' },
-      { full_name: 'Test Staff',    username: 'teststaff',     email: 'staff@fnf.test',     password: 'test123',    role: 'staff' },
-      { full_name: 'Kitchen KOT',   username: 'testkitchen',   email: 'kitchen@fnf.test',   password: 'test123',    role: 'kitchen' },
-      { full_name: 'Delivery Boy 1',username: 'testdel1',      email: 'delivery1@fnf.test', password: 'test123',    role: 'delivery_boy' },
-      { full_name: 'Delivery Boy 2',username: 'testdel2',      email: 'delivery2@fnf.test', password: 'test123',    role: 'delivery_boy' },
+    const accounts = isTest ? [
+      { full_name: 'Test Admin',     username: 'testadmin',   email: 'testadmin@fnf.test',  password: 'test123', role: 'admin' },
+      { full_name: 'Test Staff',     username: 'teststaff',   email: 'teststaff@fnf.test',  password: 'test123', role: 'staff' },
+      { full_name: 'Test Kitchen',   username: 'testkitchen', email: 'testkitchen@fnf.test', password: 'test123', role: 'kitchen' },
+      { full_name: 'Test Delivery 1',username: 'testdel1',    email: 'testdel1@fnf.test',   password: 'test123', role: 'delivery_boy' },
+      { full_name: 'Test Delivery 2',username: 'testdel2',    email: 'testdel2@fnf.test',   password: 'test123', role: 'delivery_boy' },
+    ] : [
+      { full_name: 'Fire & Flavour Admin', username: 'fnfadmin',   email: 'admin@fireflav.in',   password: 'FnF@Admin2026',   role: 'admin' },
+      { full_name: 'Counter Staff',        username: 'fnfstaff',   email: 'staff@fireflav.in',   password: 'FnF@Staff2026',   role: 'staff' },
+      { full_name: 'Kitchen Station',      username: 'fnfkitchen', email: 'kitchen@fireflav.in', password: 'FnF@Kitchen2026', role: 'kitchen' },
+      { full_name: 'Delivery Boy 1',       username: 'fnfdel1',    email: 'del1@fireflav.in',    password: 'FnF@Del1-2026',   role: 'delivery_boy' },
+      { full_name: 'Delivery Boy 2',       username: 'fnfdel2',    email: 'del2@fireflav.in',    password: 'FnF@Del2-2026',   role: 'delivery_boy' },
     ];
-    for (const acct of testAccounts) {
+    for (const acct of accounts) {
       const [ex] = await conn.execute('SELECT id FROM users WHERE username = ?', [acct.username]);
       if (!ex.length) {
         const hash = await bcrypt.hash(acct.password, 10);
@@ -235,7 +240,7 @@ async function initSingleDB(targetPool) {
       }
     }
 
-    console.log('✅ Database initialized successfully');
+    console.log(`✅ Database initialized successfully (${isTest ? 'TEST' : 'MAIN'})`);
   } finally {
     conn.release();
   }

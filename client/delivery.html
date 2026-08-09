@@ -434,12 +434,14 @@ async function markPickedUp(billId) {
 }
 
 async function markDelivered(billId) {
-  const cash = parseFloat(document.getElementById('cash-input').value) || 0;
-  const upi  = parseFloat(document.getElementById('upi-input').value) || 0;
+  const cash  = parseFloat(document.getElementById('cash-input').value) || 0;
+  const upi   = parseFloat(document.getElementById('upi-input').value)  || 0;
   const grand = parseFloat(selectedOrder.grand_total || 0);
 
-  if (cash + upi === 0) {
-    if (!confirm(`No payment entered (Order Total: ₹${grand.toFixed(2)}). Mark as delivered anyway?`)) return;
+  if (cash + upi <= 0) {
+    showToast(`⚠️ Enter the amount collected (Cash or UPI) before marking delivered. Order total: ₹${grand.toFixed(2)}`, 'warning');
+    document.getElementById('cash-input').focus();
+    return;
   }
 
   const btn = document.querySelector('.btn-deliver');

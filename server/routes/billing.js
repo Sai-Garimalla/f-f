@@ -68,6 +68,7 @@ function generateBillNumber(date, prefix, token) {
   const d = date || new Date();
   const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
   const pfx = prefix || 'DIN';
+  // Always format as PREFIX + 3-digit padded token: DM001, DE003, DIN005
   const tokenPart = pfx + String(token).padStart(3, '0');
   return `${dateStr}-${tokenPart}`;
 }
@@ -131,7 +132,7 @@ async function buildCustomerReceipt(bill, items, settings) {
   // Row 1: Token (bold) | Type (bold)
   const tokenStr  = 'Token: ' + BOLD_ON + String(bill.token_number) + BOLD_OFF;
   const typeStr   = 'Type: '  + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF;
-  r += pad('Token: ', 7) + BOLD_ON + pad(String(bill.token_number), 7) + BOLD_OFF +
+  r += pad('Token: ', 7) + BOLD_ON + pad(String(bill.token_prefix || 'DIN') + String(bill.token_number).padStart(3,'0'), 10) + BOLD_OFF +
        '  ' + 'Type: ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
   // Row 2: Customer | Phone
   const custL = bill.customer_name  ? 'Cus: '   + BOLD_ON + pad(bill.customer_name,  13) + BOLD_OFF : ''.padEnd(24);
@@ -183,7 +184,7 @@ async function buildKOT(bill, items, settings) {
   k += CENTER + BOLD_ON + '*** KITCHEN ORDER ***' + BOLD_OFF + LF;
   k += CENTER + DLINE + LF;
   // ── 2-column header grid ──
-  k += pad('Token: ', 7) + BOLD_ON + pad(String(bill.token_number), 7) + BOLD_OFF +
+  k += pad('Token: ', 7) + BOLD_ON + pad(String(bill.token_prefix || 'DIN') + String(bill.token_number).padStart(3,'0'), 10) + BOLD_OFF +
        '  ' + 'Type: ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
   const kCustL = bill.customer_name  ? 'Cus: '  + BOLD_ON + pad(bill.customer_name,  13) + BOLD_OFF : ''.padEnd(24);
   const kCustR = bill.customer_phone ? 'Phone: ' + BOLD_ON + bill.customer_phone + BOLD_OFF : '';
@@ -224,7 +225,7 @@ async function buildCounterChecklist(bill, items, settings) {
   c += dateStr.padEnd(24).slice(0, 24) + timeStr.padEnd(24).slice(0, 24) + LF;
   c += DLINE + LF;
   // ── 2-column header grid (no Taken By on checklist) ──
-  c += pad('Token: ', 7) + BOLD_ON + pad(String(bill.token_number), 7) + BOLD_OFF +
+  c += pad('Token: ', 7) + BOLD_ON + pad(String(bill.token_prefix || 'DIN') + String(bill.token_number).padStart(3,'0'), 10) + BOLD_OFF +
        '  ' + 'Type: ' + BOLD_ON + (bill.order_type || 'Dine-in') + BOLD_OFF + LF;
   const cCustL = bill.customer_name  ? 'Cus: '  + BOLD_ON + pad(bill.customer_name,  13) + BOLD_OFF : ''.padEnd(24);
   const cCustR = bill.customer_phone ? 'Phone: ' + BOLD_ON + bill.customer_phone + BOLD_OFF : '';
@@ -291,8 +292,8 @@ router.post('/', async (req, res) => {
     const now = new Date();
     const billStatus = status === 'draft' ? 'draft' : 'completed';
     const billNumber = generateBillNumber(now, prefix, token);
-    // display string e.g. "DM3", "TE1", "DIN5"
-    const tokenDisplay = prefix + token;
+    // display string e.g. "DM001", "TE001", "DIN005"
+    const tokenDisplay = prefix + String(token).padStart(3, '0');
 
     const [billResult] = await conn.execute(
       `INSERT INTO bills
@@ -465,7 +466,7 @@ router.put('/:billId', async (req, res) => {
     billData.cashier_name = req.user.full_name || req.user.username;
     const prefixStored = billData.token_prefix || 'DIN';
     const tokenNum   = billData.token_number;
-    const tokenDisp  = prefixStored + tokenNum;
+    const tokenDisp  = prefixStored + String(tokenNum).padStart(3, '0');
 
     // Fetch settings for printing
     const [settingsRows] = await pool.execute('SELECT key_name, value FROM settings');

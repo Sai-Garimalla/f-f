@@ -206,6 +206,14 @@ router.patch('/kitchen/orders/:billId/packing', requireKitchen, async (req, res)
         updateParams.splice(1, 0, 'ready');
       }
     }
+    // When REVERTED from packed → reset delivery_status back to 'pending'
+    if ((packing_status === 'pending' || packing_status === 'packing') && bill) {
+      const ot = (bill.order_type || '').toLowerCase();
+      if ((ot.includes('delivery') || ot.includes('takeaway')) && bill.delivery_status === 'ready') {
+        updateSql = 'UPDATE bills SET packing_status = ?, delivery_status = ? WHERE bill_id = ?';
+        updateParams.splice(1, 0, 'pending');
+      }
+    }
 
     await pool.execute(updateSql, updateParams);
     res.json({ success: true, packing_status });

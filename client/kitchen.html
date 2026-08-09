@@ -130,8 +130,8 @@ updateClock();
 setInterval(updateClock, 1000);
 
 function tokenDisplay(order) {
-  const pfx = order.token_prefix || 'T';
-  return pfx === 'T' ? '#' + order.token_number : '#' + pfx + order.token_number;
+  const pfx = order.token_prefix === 'T' ? 'DIN' : (order.token_prefix || 'DIN');
+  return '#' + pfx + String(order.token_number).padStart(3, '0');
 }
 
 async function loadOrders() {

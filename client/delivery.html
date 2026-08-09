@@ -234,7 +234,7 @@ function renderOrders() {
   list.innerHTML = orders.map(o => `
     <div class="order-card status-${o.delivery_status}" onclick="openOrder(${o.bill_id})">
       <div class="card-top">
-        <div class="card-token">#${o.token_prefix === 'T' ? 'DIN' : (o.token_prefix || 'DIN')}${o.token_number}</div>
+        <div class="card-token">#${o.token_prefix === 'T' ? 'DIN' : (o.token_prefix || 'DIN')}${String(o.token_number).padStart(3,'0')}</div>
         <span class="card-status-badge badge-${o.delivery_status}">${STATUS_ICONS[o.delivery_status]} ${STATUS_LABELS[o.delivery_status]}</span>
       </div>
       <div class="card-customer">${o.customer_name || 'Customer'}</div>
@@ -252,7 +252,7 @@ async function openOrder(billId) {
   selectedOrder = allOrders.find(o => o.bill_id === billId);
   if (!selectedOrder) return;
 
-  document.getElementById('modal-title').textContent = `#${selectedOrder.token_prefix === 'T' ? 'DIN' : (selectedOrder.token_prefix || 'DIN')}${selectedOrder.token_number} — Order Details`;
+  document.getElementById('modal-title').textContent = `#${selectedOrder.token_prefix === 'T' ? 'DIN' : (selectedOrder.token_prefix || 'DIN')}${String(selectedOrder.token_number).padStart(3,'0')} — Order Details`;
 
   // Status flow
   renderStatusFlow(selectedOrder.delivery_status);

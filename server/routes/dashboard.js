@@ -120,6 +120,21 @@ router.get('/stats', async (req, res) => {
        GROUP BY u.id, u.full_name ORDER BY bills_taken DESC`
     );
 
+    // ── Delivery boy performance (admin dashboard) ──
+    const [deliveryPerf] = await pool.execute(
+      `SELECT u.id, u.full_name,
+              COUNT(*) AS total_deliveries,
+              SUM(CASE WHEN b.delivery_status='delivered' THEN 1 ELSE 0 END) AS completed,
+              SUM(CASE WHEN b.delivery_status IN ('pending','preparing','ready','picked_up') THEN 1 ELSE 0 END) AS active,
+              COALESCE(SUM(b.cash_collected),0) AS cash_collected,
+              COALESCE(SUM(b.upi_collected),0) AS upi_collected,
+              COALESCE(SUM(b.cash_collected + b.upi_collected),0) AS total_collected
+       FROM bills b JOIN users u ON b.delivered_by=u.id
+       WHERE ${dateFilter} AND b.status='completed'
+         AND (b.order_type LIKE '%Delivery%' OR b.order_type LIKE '%Takeaway%')
+       GROUP BY u.id, u.full_name ORDER BY total_deliveries DESC`
+    );
+
     // ── Recent 10 bills ──
     const [recentBills] = await pool.execute(
       `SELECT b.bill_id, b.bill_number, b.token_number, b.customer_name, b.customer_phone,
@@ -175,7 +190,52 @@ router.get('/stats', async (req, res) => {
       top_items:      topItems,
       peak_hours:     peakHours,
       staff_perf:     staffPerf,
+      delivery_perf:  deliveryPerf,
       recent_bills:   recentBills,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Personal Delivery Boy Dashboard ──
+router.get('/delivery-stats', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const dateFilter = `DATE(b.created_at) = '${todayStr}'`;
+
+    const [stats] = await pool.execute(
+      `SELECT
+        COUNT(*) AS total_assigned,
+        SUM(CASE WHEN b.delivery_status='delivered' THEN 1 ELSE 0 END) AS delivered,
+        SUM(CASE WHEN b.delivery_status IN ('pending','preparing','ready','picked_up') THEN 1 ELSE 0 END) AS pending,
+        COALESCE(SUM(CASE WHEN b.delivery_status='delivered' THEN b.cash_collected ELSE 0 END),0) AS cash_collected,
+        COALESCE(SUM(CASE WHEN b.delivery_status='delivered' THEN b.upi_collected ELSE 0 END),0) AS upi_collected,
+        COALESCE(SUM(CASE WHEN b.delivery_status='delivered' THEN b.cash_collected + b.upi_collected ELSE 0 END),0) AS total_collected
+       FROM bills b
+       WHERE ${dateFilter}
+         AND (b.assigned_delivery_boy = ? OR b.delivered_by = ?)
+         AND b.status='completed'
+         AND (b.order_type LIKE '%Delivery%' OR b.order_type LIKE '%Takeaway%')`,
+      [userId, userId]
+    );
+
+    const [recentDeliveries] = await pool.execute(
+      `SELECT b.bill_id, b.bill_number, b.token_number, b.token_prefix,
+              b.customer_name, b.customer_phone, b.delivery_address, b.order_type,
+              b.grand_total, b.delivery_status, b.cash_collected, b.upi_collected, b.created_at
+       FROM bills b
+       WHERE ${dateFilter}
+         AND (b.assigned_delivery_boy = ? OR b.delivered_by = ?)
+         AND b.status='completed'
+       ORDER BY b.created_at DESC LIMIT 20`,
+      [userId, userId]
+    );
+
+    res.json({
+      stats: stats[0],
+      recent_deliveries: recentDeliveries
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

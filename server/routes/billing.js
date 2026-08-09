@@ -207,6 +207,7 @@ async function buildCounterChecklist(bill, items, settings) {
   const cCustR = bill.customer_phone ? 'Phone: ' + BOLD_ON + bill.customer_phone + BOLD_OFF : '';
   if (bill.customer_name || bill.customer_phone) c += cCustL + '  ' + cCustR + LF;
   if (bill.delivery_address) c += 'Loc: ' + BOLD_ON + bill.delivery_address + BOLD_OFF + LF;
+  if (bill.custom_note) c += BOLD_ON + 'Note: ' + bill.custom_note + BOLD_OFF + LF;
   c += DLINE + LF;
 
   // Checklist header: [ ] ITEM(28) QTY(5) PRICE(11) = 48

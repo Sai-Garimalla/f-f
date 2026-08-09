@@ -839,6 +839,7 @@ function buildPreviews() {
   const orderType = document.getElementById('order-type').value;
   const custName  = (document.getElementById('customer-name').value || '').trim();
   const custPhone = (document.getElementById('customer-phone').value || '').trim();
+  const customNote = (document.getElementById('custom-note').value || '').trim();
 
   let orderMeta = '';
   if (orderType === 'Dine-in') {
@@ -903,6 +904,7 @@ function buildPreviews() {
   if (custName)    k += 'Name     : ' + custName + '\n';
   if (custPhone)   k += 'Ph       : ' + custPhone + '\n';
   if (deliveryAddr) k += 'Addr     : ' + deliveryAddr + '\n';
+  if (customNote)  k += 'Note     : ' + customNote + '\n';
   k += DLINE + '\n';
   k += 'ITEM'.padEnd(41) + 'QTY'.padStart(7) + '\n';
   k += DLINE + '\n';
@@ -923,6 +925,7 @@ function buildPreviews() {
   if (custName)    c += 'Customer : ' + custName + '\n';
   if (custPhone)   c += 'Phone    : ' + custPhone + '\n';
   if (deliveryAddr) c += 'Address  : ' + deliveryAddr + '\n';
+  if (customNote)  c += 'Note     : ' + customNote + '\n';
   c += DLINE + '\n';
   c += '[ ] ' + pad('ITEM',28) + padL('QTY',5) + padL('AMOUNT',11) + '\n';
   c += LINE + '\n';

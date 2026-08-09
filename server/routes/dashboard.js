@@ -5,6 +5,14 @@ const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
 
+// Helper: get current IST date string (YYYY-MM-DD)
+function getISTDateStr(offset = 0) {
+  const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  if (offset) now.setDate(now.getDate() + offset);
+  return now.toISOString().split('T')[0];
+}
+const IST_CREATED = "CONVERT_TZ(b.created_at,'+00:00','+05:30')";
+
 router.get('/stats', async (req, res) => {
   try {
     // ── Date range from query params ──
@@ -12,38 +20,36 @@ router.get('/stats', async (req, res) => {
     const customFrom = req.query.from || null;
     const customTo   = req.query.to   || null;
 
-    let dateFilter, labelFormat, chartGroupBy, chartInterval, chartLabel;
+    let dateFilter, chartGroupBy, chartInterval, chartLabel;
 
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = getISTDateStr();
 
     switch (period) {
       case 'yesterday': {
-        const y = new Date(now); y.setDate(y.getDate() - 1);
-        const yStr = y.toISOString().split('T')[0];
-        dateFilter = `DATE(b.created_at) = '${yStr}'`;
-        chartGroupBy = `HOUR(b.created_at)`;
+        const yStr = getISTDateStr(-1);
+        dateFilter = `DATE(${IST_CREATED}) = '${yStr}'`;
+        chartGroupBy = `HOUR(${IST_CREATED})`;
         chartInterval = 24;
         chartLabel = 'hour';
         break;
       }
       case 'week': {
-        dateFilter = `b.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
-        chartGroupBy = `DATE(b.created_at)`;
+        dateFilter = `DATE(${IST_CREATED}) >= DATE_SUB('${todayStr}', INTERVAL 6 DAY)`;
+        chartGroupBy = `DATE(${IST_CREATED})`;
         chartInterval = 7;
         chartLabel = 'day';
         break;
       }
       case 'month': {
-        dateFilter = `MONTH(b.created_at)=MONTH(NOW()) AND YEAR(b.created_at)=YEAR(NOW())`;
-        chartGroupBy = `DATE(b.created_at)`;
+        dateFilter = `MONTH(${IST_CREATED})=MONTH('${todayStr}') AND YEAR(${IST_CREATED})=YEAR('${todayStr}')`;
+        chartGroupBy = `DATE(${IST_CREATED})`;
         chartInterval = 30;
         chartLabel = 'day';
         break;
       }
       case 'year': {
-        dateFilter = `YEAR(b.created_at)=YEAR(NOW())`;
-        chartGroupBy = `MONTH(b.created_at)`;
+        dateFilter = `YEAR(${IST_CREATED})=YEAR('${todayStr}')`;
+        chartGroupBy = `MONTH(${IST_CREATED})`;
         chartInterval = 12;
         chartLabel = 'month';
         break;
@@ -51,15 +57,15 @@ router.get('/stats', async (req, res) => {
       case 'custom': {
         const f = customFrom || todayStr;
         const t = customTo   || todayStr;
-        dateFilter = `DATE(b.created_at) BETWEEN '${f}' AND '${t}'`;
-        chartGroupBy = `DATE(b.created_at)`;
+        dateFilter = `DATE(${IST_CREATED}) BETWEEN '${f}' AND '${t}'`;
+        chartGroupBy = `DATE(${IST_CREATED})`;
         chartInterval = null;
         chartLabel = 'day';
         break;
       }
       default: { // today
-        dateFilter = `DATE(b.created_at) = '${todayStr}'`;
-        chartGroupBy = `HOUR(b.created_at)`;
+        dateFilter = `DATE(${IST_CREATED}) = '${todayStr}'`;
+        chartGroupBy = `HOUR(${IST_CREATED})`;
         chartInterval = 24;
         chartLabel = 'hour';
       }
@@ -105,11 +111,11 @@ router.get('/stats', async (req, res) => {
        GROUP BY bi.item_name, bi.item_code ORDER BY qty DESC LIMIT 10`
     );
 
-    // ── Peak hours ──
+    // ── Peak hours (IST) ──
     const [peakHours] = await pool.execute(
-      `SELECT HOUR(b.created_at) AS hour, COUNT(*) AS bill_count, COALESCE(SUM(grand_total),0) AS sales
+      `SELECT HOUR(${IST_CREATED}) AS hour, COUNT(*) AS bill_count, COALESCE(SUM(grand_total),0) AS sales
        FROM bills b WHERE ${dateFilter} AND status='completed'
-       GROUP BY HOUR(b.created_at) ORDER BY bill_count DESC LIMIT 8`
+       GROUP BY HOUR(${IST_CREATED}) ORDER BY bill_count DESC LIMIT 8`
     );
 
     // ── Staff performance ──
@@ -145,18 +151,18 @@ router.get('/stats', async (req, res) => {
        ORDER BY b.created_at DESC LIMIT 10`
     );
 
-    // ── Comparison: previous same period ──
+    // ── Comparison: previous same period (IST) ──
     let prevFilter;
     switch (period) {
       case 'yesterday': {
-        const p = new Date(now); p.setDate(p.getDate() - 2);
-        prevFilter = `DATE(b.created_at) = '${p.toISOString().split('T')[0]}'`;
+        const pStr = getISTDateStr(-2);
+        prevFilter = `DATE(${IST_CREATED}) = '${pStr}'`;
         break;
       }
-      case 'week':  prevFilter = `b.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND b.created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)`; break;
-      case 'month': prevFilter = `MONTH(b.created_at)=MONTH(DATE_SUB(NOW(), INTERVAL 1 MONTH)) AND YEAR(b.created_at)=YEAR(DATE_SUB(NOW(), INTERVAL 1 MONTH))`; break;
-      case 'year':  prevFilter = `YEAR(b.created_at)=YEAR(NOW())-1`; break;
-      default:      prevFilter = `DATE(b.created_at) = DATE_SUB('${todayStr}', INTERVAL 1 DAY)`;
+      case 'week':  prevFilter = `DATE(${IST_CREATED}) >= DATE_SUB('${todayStr}', INTERVAL 13 DAY) AND DATE(${IST_CREATED}) < DATE_SUB('${todayStr}', INTERVAL 6 DAY)`; break;
+      case 'month': prevFilter = `MONTH(${IST_CREATED})=MONTH(DATE_SUB('${todayStr}', INTERVAL 1 MONTH)) AND YEAR(${IST_CREATED})=YEAR(DATE_SUB('${todayStr}', INTERVAL 1 MONTH))`; break;
+      case 'year':  prevFilter = `YEAR(${IST_CREATED})=YEAR('${todayStr}')-1`; break;
+      default:      prevFilter = `DATE(${IST_CREATED}) = DATE_SUB('${todayStr}', INTERVAL 1 DAY)`;
     }
     const [prevSales] = await pool.execute(
       `SELECT COALESCE(SUM(grand_total),0) AS total, COUNT(*) AS bill_count
@@ -204,8 +210,8 @@ router.get('/stats', async (req, res) => {
 router.get('/delivery-stats', async (req, res) => {
   try {
     const userId = req.user.id;
-    const todayStr = new Date().toISOString().split('T')[0];
-    const dateFilter = `DATE(b.created_at) = '${todayStr}'`;
+    const todayStr = getISTDateStr();
+    const dateFilter = `DATE(${IST_CREATED}) = '${todayStr}'`;
 
     const [stats] = await pool.execute(
       `SELECT

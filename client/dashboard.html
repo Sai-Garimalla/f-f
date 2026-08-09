@@ -237,14 +237,17 @@ initSidebar('dashboard');
 
 function updateClock() {
   document.getElementById('current-time').textContent =
-    new Date().toLocaleString('en-IN', { weekday:'long', day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', weekday:'long', day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 updateClock(); setInterval(updateClock, 60000);
-const h = new Date().getHours();
+
+// IST-aware greeting
+const istNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+const h = istNow.getHours();
 document.getElementById('greeting').textContent = (h<12?'Good morning':h<17?'Good afternoon':'Good evening') + "! Here's your business overview.";
 
-// Set default dates
-const today = new Date().toISOString().split('T')[0];
+// Set default dates in IST
+const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD format
 document.getElementById('range-from').value = today;
 document.getElementById('range-to').value   = today;
 

@@ -13,9 +13,16 @@ async function syncDailyToSheets(targetDate = null) {
 
     const credentials = JSON.parse(serviceAccountKeyStr);
     
-    // Fix for Vercel/Env Parsers double-escaping newlines
+    // Fix for Vercel/Env Parsers double-escaping or completely stripping newlines
     if (credentials.private_key) {
-      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+      let key = credentials.private_key.replace(/\\n/g, '\n');
+      // If Vercel stripped ALL newlines, reconstruct the PEM format:
+      if (!key.includes('\n')) {
+        key = key.replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
+                 .replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----')
+                 .replace(/([A-Za-z0-9+/=]{64})/g, '$1\n');
+      }
+      credentials.private_key = key;
     }
 
     const auth = new google.auth.GoogleAuth({

@@ -434,20 +434,60 @@ async function loadMenu() {
   } catch(e) { showToast('Failed to load menu: ' + e.message, 'error'); }
 }
 
+let lastCategory = null;
+let lastSearch = null;
+
+function syncMenuQuantities() {
+  menuItems.forEach(item => {
+    const card = document.getElementById('menu-card-' + item.item_code);
+    if (!card) return;
+    const existing = billItems.find(b => b.item_code === item.item_code && !b.is_manual);
+    const qty = existing ? existing.quantity : 0;
+    
+    if (qty > 0) {
+      card.classList.add('active');
+      document.getElementById('menu-btn-' + item.item_code).innerHTML = `
+        <div class="menu-qty-ctrl" onclick="event.stopPropagation()">
+          <button class="menu-qty-btn" onclick="updateMenuItemQty('${item.item_code}', -1)">-</button>
+          <div class="menu-qty-val">${qty}</div>
+          <button class="menu-qty-btn" onclick="updateMenuItemQty('${item.item_code}', 1)">+</button>
+        </div>
+      `;
+    } else {
+      card.classList.remove('active');
+      document.getElementById('menu-btn-' + item.item_code).innerHTML = `<button class="menu-add-btn" onclick="event.stopPropagation(); updateMenuItemQty('${item.item_code}', 1)">+ Add</button>`;
+    }
+  });
+}
+
 function renderMenuGrid(searchStr) {
-  const search = typeof searchStr === 'string' ? searchStr : document.getElementById('menu-search').value;
+  const searchInput = document.getElementById('menu-search');
+  const search = typeof searchStr === 'string' ? searchStr : (searchInput ? searchInput.value : '');
+  
+  if (lastCategory === activeCategory && lastSearch === search) {
+    syncMenuQuantities();
+    return;
+  }
+  lastCategory = activeCategory;
+  lastSearch = search;
+  
   const grid = document.getElementById('menu-grid');
+  if (!grid) return;
+  
   let filtered = menuItems;
   if (activeCategory) filtered = filtered.filter(i => i.category === activeCategory);
   if (search) {
-    const s = search.toLowerCase();
+    const s = String(search).toLowerCase();
     filtered = filtered.filter(i => 
-      (i.item_name && i.item_name.toLowerCase().includes(s)) || 
-      (i.item_code && String(i.item_code).toLowerCase().includes(s))
+      String(i.item_name || '').toLowerCase().includes(s) || 
+      String(i.item_code || '').toLowerCase().includes(s)
     );
   }
+  
   if (!filtered.length) { grid.innerHTML = '<div style="grid-column:span 2;padding:30px;text-align:center;color:var(--text-muted)">No items found</div>'; return; }
-  grid.innerHTML = filtered.map(item => {
+  
+  let html = '';
+  for (const item of filtered) {
     const existing = billItems.find(b => b.item_code === item.item_code && !b.is_manual);
     const qty = existing ? existing.quantity : 0;
     
@@ -464,16 +504,17 @@ function renderMenuGrid(searchStr) {
       btnHTML = `<button class="menu-add-btn" onclick="event.stopPropagation(); updateMenuItemQty('${item.item_code}', 1)">+ Add</button>`;
     }
 
-    return `
-    <div class="menu-item-card ${qty > 0 ? 'active' : ''}" onclick="updateMenuItemQty('${item.item_code}', 1)">
+    html += `
+    <div class="menu-item-card ${qty > 0 ? 'active' : ''}" onclick="updateMenuItemQty('${item.item_code}', 1)" id="menu-card-${item.item_code}">
       <div class="item-cat">${item.category}</div>
       <div class="item-name">${item.item_name}</div>
       <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:8px;">
         <div class="item-price">${formatCurrency(item.default_price)}</div>
-        ${btnHTML}
+        <div id="menu-btn-${item.item_code}">${btnHTML}</div>
       </div>
     </div>`;
-  }).join('');
+  }
+  grid.innerHTML = html;
 }
 
 function updateMenuItemQty(itemCode, delta) {
@@ -504,7 +545,11 @@ function updateMenuItemQty(itemCode, delta) {
   renderMenuGrid(); // This updates the + / - buttons on the menu grid side
 }
 
-document.getElementById('menu-search').addEventListener('input', e => renderMenuGrid(e.target.value));
+let menuSearchTimeout;
+document.getElementById('menu-search').addEventListener('input', e => {
+  clearTimeout(menuSearchTimeout);
+  menuSearchTimeout = setTimeout(() => renderMenuGrid(e.target.value), 200);
+});
 
 function addItem(id) {
   // Legacy fallback (now handled by updateMenuItemQty)

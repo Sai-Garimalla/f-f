@@ -12,6 +12,11 @@ async function syncDailyToSheets(targetDate = null) {
     }
 
     const credentials = JSON.parse(serviceAccountKeyStr);
+    
+    // Fix for Vercel/Env Parsers double-escaping newlines
+    if (credentials.private_key) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    }
 
     const auth = new google.auth.GoogleAuth({
       credentials,

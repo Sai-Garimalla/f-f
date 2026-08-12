@@ -21,6 +21,7 @@ router.post('/', requireAdmin, async (req, res) => {
   try {
     const { full_name, username, email, phone, password, role } = req.body;
     if (!full_name || !username || !password) return res.status(400).json({ error: 'Name, username and password are required.' });
+    if (role === 'delivery_boy' && !phone) return res.status(400).json({ error: 'Phone number is required for Delivery Boys.' });
     const hash = await bcrypt.hash(password, 12);
     const [result] = await pool.execute(
       'INSERT INTO users (full_name, username, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)',
@@ -36,13 +37,17 @@ router.post('/', requireAdmin, async (req, res) => {
 // PATCH update user (admin only)
 router.patch('/:id', requireAdmin, async (req, res) => {
   try {
-    const { full_name, phone, status, role } = req.body;
+    const { full_name, username, phone, status, role } = req.body;
+    if (role === 'delivery_boy' && !phone) return res.status(400).json({ error: 'Phone number is required for Delivery Boys.' });
     await pool.execute(
-      'UPDATE users SET full_name=?, phone=?, status=?, role=? WHERE id=?',
-      [full_name, phone || null, status || 'active', ['admin','staff','delivery_boy','kitchen'].includes(role) ? role : 'staff', req.params.id]
+      'UPDATE users SET full_name=?, username=?, phone=?, status=?, role=? WHERE id=?',
+      [full_name, username, phone || null, status || 'active', ['admin','staff','delivery_boy','kitchen'].includes(role) ? role : 'staff', req.params.id]
     );
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    res.json({ success: true, updated_username: username });
+  } catch (err) { 
+    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Username already exists.' });
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 // DELETE user (admin only, can't delete yourself)

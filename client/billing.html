@@ -48,7 +48,7 @@
     .manual-row button { flex:1 1 100%; }
     .bill-panel { padding-bottom:80px; }
   }
-  .customer-bar input { flex: 1; max-width: 220px; }
+  .customer-bar input { flex: 1; min-width: 0; max-width: 100%; }
   .addon-toggles { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
   .addon-section { padding: 8px 14px; border-bottom: 1px solid #FFE0B2; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; background: #FFF8F0; }
   .addon-group { display: flex; gap: 8px; align-items: center; }
@@ -59,8 +59,8 @@
   .discount-opts { display: flex; gap: 6px; align-items: center; }
   .manual-row { padding: 6px 14px; border-bottom: 1px solid #FFE0B2; background: #FFFDE7; }
   .manual-row form { display: flex; gap: 6px; }
-  .manual-row input { flex: 1; padding: 5px 8px; }
-  .bill-header { padding: 8px 14px; border-bottom: 1px solid #FFE0B2; display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: #8D6E63; letter-spacing:.5px; text-transform:uppercase; }
+  .manual-row input { flex: 1; min-width: 0; padding: 8px 10px; }
+  .bill-header { padding: 8px 14px; border-bottom: 1px solid #FFE0B2; display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: #8D6E63; letter-spacing:.5px; text-transform:uppercase; flex-wrap: wrap; gap: 8px; }
   .empty-bill { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #BCAAA4; gap: 8px; }
   .empty-bill .big-icon { font-size: 40px; }
 
@@ -138,8 +138,8 @@
             <input type="tel" id="customer-phone" class="topbar-phone form-control" placeholder="📞 Phone" oninput="handlePhoneInput(this.value)" style="width:100%;">
             <span id="phone-required-star" class="phone-required-star" title="Required for this order type">*</span>
           </div>
-          <input type="text" id="customer-name" class="topbar-name form-control" placeholder="👤 Name" style="flex:1;">
-          <input type="text" id="custom-note" class="form-control" placeholder="📝 Note" style="flex:1;">
+          <input type="text" id="customer-name" class="topbar-name form-control" placeholder="👤 Name" style="flex:1; min-width: 0;">
+          <input type="text" id="custom-note" class="form-control" placeholder="📝 Note" style="flex:1; min-width: 0;">
           <button id="cust-history-btn" class="btn btn-secondary btn-sm" style="display:none; padding: 0 10px;" onclick="showCustomerHistory()" title="View History">📜</button>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="holdBill()">⏸ Hold</button>
@@ -224,6 +224,24 @@
                 <option value="fixed">₹</option>
               </select>
               <input type="number" class="form-control" id="discount-val" placeholder="0" min="0" step="0.01" style="width:70px">
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Section (For Dine-in) -->
+        <div class="addon-section" id="dinein-payment-section">
+          <div class="addon-group">
+            <label class="addon-label">💳 Mark as Paid</label>
+            <label class="toggle"><input type="checkbox" id="dinein-paid-toggle"><span class="toggle-slider"></span></label>
+            <div id="dinein-payment-opts" style="display:none;flex-direction:column;gap:6px;width:100%;margin-top:6px;">
+              <div style="display:flex;gap:8px;align-items:center;">
+                <span style="font-size:11px;font-weight:600;color:#8D6E63;width:30px;">Cash</span>
+                <input type="number" id="dinein-cash-input" class="form-control" placeholder="₹0.00" min="0" step="0.01" style="flex:1;">
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <span style="font-size:11px;font-weight:600;color:#8D6E63;width:30px;">UPI</span>
+                <input type="number" id="dinein-upi-input" class="form-control" placeholder="₹0.00" min="0" step="0.01" style="flex:1;">
+              </div>
             </div>
           </div>
         </div>
@@ -348,8 +366,10 @@ document.querySelectorAll('.ot-pill').forEach(pill => {
     const tbTable = document.getElementById('order-table');
     const tbLoc = document.getElementById('order-location');
     const tbLocOther = document.getElementById('order-location-other');
+    const tbPayment = document.getElementById('dinein-payment-section');
     tbTable.style.display = type === 'Dine-in' ? 'block' : 'none';
     tbLoc.style.display = type === 'Delivery' ? 'block' : 'none';
+    tbPayment.style.display = type === 'Dine-in' ? 'flex' : 'none';
     if (type !== 'Delivery') tbLocOther.style.display = 'none';
     else toggleLocationOther();
 
@@ -367,6 +387,8 @@ document.querySelectorAll('.ot-pill').forEach(pill => {
     if (type !== 'Dine-in') {
       star.style.display = 'inline';
       phoneEl.placeholder = '📞 Phone (required)';
+      document.getElementById('dinein-paid-toggle').checked = false;
+      document.getElementById('dinein-payment-opts').style.display = 'none';
     } else {
       star.style.display = 'none';
       phoneEl.placeholder = '📞 Phone (optional)';
@@ -693,6 +715,11 @@ document.getElementById('discount-toggle').addEventListener('change', e => {
 document.getElementById('discount-type').addEventListener('change', updateTotals);
 document.getElementById('discount-val').addEventListener('input', updateTotals);
 
+// Dine-in paid toggle
+document.getElementById('dinein-paid-toggle').addEventListener('change', e => {
+  document.getElementById('dinein-payment-opts').style.display = e.target.checked ? 'flex' : 'none';
+});
+
 function clearBill() {
   if (billItems.length && !confirm('Clear current bill?')) return;
   billItems = [];
@@ -701,6 +728,10 @@ function clearBill() {
   document.getElementById('discount-toggle').checked = false;
   document.getElementById('delivery-opts').style.display = 'none';
   document.getElementById('discount-opts').style.display = 'none';
+  document.getElementById('dinein-paid-toggle').checked = false;
+  document.getElementById('dinein-payment-opts').style.display = 'none';
+  document.getElementById('dinein-cash-input').value = '';
+  document.getElementById('dinein-upi-input').value = '';
   document.getElementById('customer-phone').value = '';
   document.getElementById('customer-name').value  = '';
   document.getElementById('custom-note').value  = '';
@@ -1083,6 +1114,13 @@ async function saveBill(print=true, status='completed') {
     const discAmt  = discountEnabled ? (discType === 'percentage' ? (subtotal+delivery)*discVal/100 : discVal) : 0;
     const grand    = Math.max(0, subtotal + delivery - discAmt);
     const orderType = document.getElementById('order-type').value;
+    
+    let cash_collected = 0, upi_collected = 0;
+    if (orderType === 'Dine-in' && document.getElementById('dinein-paid-toggle').checked) {
+      cash_collected = parseFloat(document.getElementById('dinein-cash-input').value) || 0;
+      upi_collected  = parseFloat(document.getElementById('dinein-upi-input').value) || 0;
+    }
+
     let orderMeta = '';
     if (orderType === 'Dine-in') {
       const t = document.getElementById('order-table').value.trim();
@@ -1105,7 +1143,9 @@ async function saveBill(print=true, status='completed') {
       discount_enabled: discountEnabled, discount_type: discType, discount_value: discVal, discount_amount: discAmt,
       grand_total: grand,
       status: status,
-      print_intent: print
+      print_intent: print,
+      cash_collected: cash_collected,
+      upi_collected: upi_collected
     };
     if (window.reservedToken) payload.token_number = window.reservedToken;
 

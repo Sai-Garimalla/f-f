@@ -108,6 +108,7 @@ function initSidebar(activePage) {
   <nav class="sidebar-nav">
     <div class="nav-label">Main</div>
     ${isAdmin ? `<a href="/dashboard.html" class="nav-link ${activePage==='dashboard'?'active':''}"><span class="nav-icon">📊</span> Dashboard</a>` : ''}
+    ${isAdmin ? `<a href="/item-sales.html" class="nav-link ${activePage==='item-sales'?'active':''}"><span class="nav-icon">📈</span> Item Sales</a>` : ''}
     <a href="/billing.html" class="nav-link ${activePage==='billing'?'active':''}"><span class="nav-icon">🧾</span> New Bill</a>
     <a href="/recent-bills.html" class="nav-link ${activePage==='bills'?'active':''}"><span class="nav-icon">📋</span> Recent Bills</a>
     <a href="/customer-search.html" class="nav-link ${activePage==='customer-search'?'active':''}"><span class="nav-icon">🔍</span> Customer Search</a>

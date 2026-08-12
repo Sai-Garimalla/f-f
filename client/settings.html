@@ -8,10 +8,16 @@
 <style>
   .settings-section { margin-bottom: 20px; }
   .settings-section h3 { font-size: 13px; font-weight: 700; color: var(--flame-light); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
-  .toggle-row-label { font-size: 13px; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #FFE0B2; gap: 12px; }
+  .toggle-row-label { font-size: 13px; font-weight: 600; }
   .toggle-row-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-  .printer-test { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 768px) { .settings-grid { grid-template-columns: 1fr; } }
+  .export-db-card { background: linear-gradient(135deg,#FFF8F0,#FFF3E0); border: 2px solid #FFCC80; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .export-db-card h3 { font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+  .export-db-card p { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
+  .export-db-sheets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .sheet-badge { background: #FFF; border: 1px solid #FFCC80; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; color: var(--primary); }
 </style>
 </head>
 <body>
@@ -23,7 +29,7 @@
       <button class="btn btn-primary" id="save-btn" onclick="saveSettings()">💾 Save Settings</button>
     </div>
     <div class="page-body">
-      <div class="grid-2">
+      <div class="settings-grid">
         <!-- Restaurant Info -->
         <div class="card settings-section">
           <h3>🏪 Restaurant Information</h3>
@@ -151,6 +157,24 @@
           ⚠️ <strong>Security:</strong> Please change all passwords before going live!
         </div>
       </div>
+
+      <!-- Complete Database Export -->
+      <div class="export-db-card" id="export-db-section">
+        <h3>🗄️ Export Complete Database</h3>
+        <p>Download the entire database as a single Excel workbook. Each table gets its own worksheet. Contains <strong>all records</strong> — not filtered by date.</p>
+        <div class="export-db-sheets">
+          <span class="sheet-badge">👥 users</span>
+          <span class="sheet-badge">🍽️ menu</span>
+          <span class="sheet-badge">🧾 bills</span>
+          <span class="sheet-badge">📋 bill_items</span>
+          <span class="sheet-badge">⚙️ settings</span>
+          <span class="sheet-badge">🎫 token_counter</span>
+        </div>
+        <button class="btn btn-primary" id="export-db-btn" onclick="exportCompleteDb()" style="min-width:220px;">
+          🗄️ Export Complete Database
+        </button>
+        <div id="export-db-result" style="margin-top:10px;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -228,6 +252,26 @@ async function testPrint(printer) {
     btn.disabled = false;
     btn.textContent = printer === 'kitchen' ? '🖨️ Test Kitchen Printer' : '🖨️ Test Customer Printer';
   }
+}
+
+async function exportCompleteDb() {
+  const btn = document.getElementById('export-db-btn');
+  const res = document.getElementById('export-db-result');
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  res.innerHTML = '';
+  try {
+    const token = localStorage.getItem('ff_token') || '';
+    const resp = await fetch('/api/export/complete-db', { headers: { Authorization: 'Bearer ' + token } });
+    if (!resp.ok) { const e = await resp.json().catch(() => ({ error: 'Export failed' })); throw new Error(e.error); }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = resp.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'FireAndFlavour_DB.xlsx';
+    a.click();
+    res.innerHTML = '<div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:8px;padding:10px 14px;font-size:12px;color:#2E7D32;margin-top:6px">✅ Complete database exported successfully!</div>';
+  } catch(e) {
+    res.innerHTML = `<div style="background:#FFEBEE;border:1px solid #EF9A9A;border-radius:8px;padding:10px 14px;font-size:12px;color:#C62828;margin-top:6px">❌ ${e.message}</div>`;
+  } finally { btn.disabled = false; btn.textContent = '🗄️ Export Complete Database'; }
 }
 
 loadSettings();

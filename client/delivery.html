@@ -42,7 +42,7 @@
   .card-time     { font-size: 10px; color: #aaa; }
 
   /* Order detail modal */
-  .order-detail-customer { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; background: linear-gradient(135deg, #FFF8F0, #FFFDE7); border-radius: 10px; margin-bottom: 14px; }
+  .order-detail-customer { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; padding: 14px; background: linear-gradient(135deg, #FFF8F0, #FFFDE7); border-radius: 10px; margin-bottom: 14px; }
   .cust-field { display: flex; flex-direction: column; gap: 2px; }
   .cust-label { font-size: 10px; font-weight: 700; color: #8D6E63; text-transform: uppercase; letter-spacing: .5px; }
   .cust-value { font-size: 14px; font-weight: 700; color: #3E2000; }
@@ -112,7 +112,19 @@
         <input type="text" class="form-control" id="delivery-search-input" placeholder="🔍 Find Token, Name, Phone, Address…" oninput="renderOrders()" style="flex:1; border-radius:8px; padding:6px 12px; border:1px solid #FFCC80;">
         <button class="btn btn-primary" onclick="renderOrders()" style="padding:6px 14px; font-weight:700; border-radius:8px;">Find</button>
       </div>
-      <select id="delivery-prefix-filter" class="form-control" onchange="renderOrders()" style="max-width:160px; border-radius:8px; padding:6px 10px; border:1px solid #FFCC80;">
+      <select id="delivery-period-filter" class="form-control filter-extra" onchange="toggleDeliveryCustomDates(); loadOrders();" style="max-width:145px; border-radius:8px; padding:6px 10px; border:1px solid #FFCC80; display:none;">
+        <option value="all">All Dates</option>
+        <option value="today">Today</option>
+        <option value="yesterday">Yesterday</option>
+        <option value="week">Last 7 Days</option>
+        <option value="month">This Month</option>
+        <option value="custom">Custom Date Range</option>
+      </select>
+      <div id="delivery-custom-dates" class="filter-extra" style="display:none; gap:4px;">
+        <input type="date" id="delivery-date-from" class="form-control" onchange="loadOrders()" style="max-width:145px; border-radius:8px; padding:6px 10px; border:1px solid #FFCC80;">
+        <input type="date" id="delivery-date-to" class="form-control" onchange="loadOrders()" style="max-width:145px; border-radius:8px; padding:6px 10px; border:1px solid #FFCC80;">
+      </div>
+      <select id="delivery-prefix-filter" class="form-control filter-extra" onchange="renderOrders()" style="max-width:160px; border-radius:8px; padding:6px 10px; border:1px solid #FFCC80; display:none;">
         <option value="">All Delivery Types</option>
         <option value="DM">DM — Delivery (Morning)</option>
         <option value="DE">DE — Delivery (Evening)</option>
@@ -228,9 +240,27 @@ const STATUS_ICONS = {
   delivered: '🏁'
 };
 
+function toggleDeliveryCustomDates() {
+  const isCustom = document.getElementById('delivery-period-filter').value === 'custom';
+  const customDiv = document.getElementById('delivery-custom-dates');
+  if (currentFilter !== 'active' && isCustom) {
+    customDiv.style.display = 'flex';
+  } else {
+    customDiv.style.display = 'none';
+  }
+}
+
 async function loadOrders() {
   try {
-    const data = await apiFetch('/delivery/orders');
+    const period = document.getElementById('delivery-period-filter') ? document.getElementById('delivery-period-filter').value : 'all';
+    const fDate = document.getElementById('delivery-date-from') ? document.getElementById('delivery-date-from').value : '';
+    const tDate = document.getElementById('delivery-date-to') ? document.getElementById('delivery-date-to').value : '';
+    
+    let url = `/delivery/orders?period=${period}`;
+    if (period === 'custom' && fDate) url += `&from=${fDate}`;
+    if (period === 'custom' && tDate) url += `&to=${tDate}`;
+
+    const data = await apiFetch(url);
     allOrders = data.orders || [];
     renderOrders();
   } catch (e) {
@@ -243,7 +273,25 @@ function filterOrders(filter, btn) {
   currentFilter = filter;
   document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  renderOrders();
+  
+  // Show/Hide extra filters based on tab
+  const isExtra = filter !== 'active';
+  document.querySelectorAll('.filter-extra').forEach(el => {
+    if (el.id === 'delivery-custom-dates') {
+      const isCustom = document.getElementById('delivery-period-filter').value === 'custom';
+      el.style.display = (isExtra && isCustom) ? 'flex' : 'none';
+    } else {
+      el.style.display = isExtra ? 'block' : 'none';
+    }
+  });
+  
+  // If moving from Active to another tab and a period filter is set, reload data to ensure we fetch past orders if needed
+  const period = document.getElementById('delivery-period-filter').value;
+  if (filter !== 'active' && period !== 'all') {
+    loadOrders();
+  } else {
+    renderOrders();
+  }
 }
 
 function renderOrders() {

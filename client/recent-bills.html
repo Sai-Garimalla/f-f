@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="css/style.css">
 <style>
   .filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
-  .filters input, .filters select { max-width:180px; }
+  .filters input, .filters select { flex:1 1 120px; min-width:0; }
   .bill-detail-items table { font-size:12px; }
   /* Mobile card list */
   .bills-card-list { display:none; flex-direction:column; gap:10px; }
@@ -39,13 +39,13 @@
   .pending-bal { color:#C62828; font-size:10px; font-weight:700; margin-top:2px; }
 
   /* Customer hero in modal */
-  .cust-hero { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; background:linear-gradient(135deg,#FFF8F0,#FFFDE7); border-radius:12px; margin-bottom:14px; border:1px solid #FFCC80; }
+  .cust-hero { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:10px; padding:14px; background:linear-gradient(135deg,#FFF8F0,#FFFDE7); border-radius:12px; margin-bottom:14px; border:1px solid #FFCC80; }
   .cust-hero-field { display:flex; flex-direction:column; gap:3px; }
   .cust-hero-label { font-size:10px; font-weight:700; color:#8D6E63; text-transform:uppercase; letter-spacing:.5px; }
-  .cust-hero-val { font-size:15px; font-weight:700; color:#3E2000; }
+  .cust-hero-val { font-size:15px; font-weight:700; color:#3E2000; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cust-hero-val.big { font-size:18px; color:#E65100; }
   .cust-hero-val.phone { color:#1565C0; }
-  .cust-hero-addr { grid-column:span 2; background:#FFF3E0; border:1px solid #FFCC80; border-radius:8px; padding:8px 12px; font-size:13px; color:#3E2000; font-weight:600; }
+  .cust-hero-addr { grid-column:1 / -1; background:#FFF3E0; border:1px solid #FFCC80; border-radius:8px; padding:8px 12px; font-size:13px; color:#3E2000; font-weight:600; }
 
   /* Delivery status selector in modal */
   .delivery-status-bar { display:flex; gap:6px; align-items:center; padding:10px 14px; background:#FFF8F0; border-top:1px solid #FFCC80; flex-wrap:wrap; }
@@ -84,6 +84,8 @@
           <select id="prefix-filter" class="form-control" onchange="loadBills(1)">
             <option value="">All Order Types</option>
             <option value="DIN">DIN — Dine-in</option>
+            <option value="Delivery">All Delivery</option>
+            <option value="Takeaway">All Takeaway</option>
             <option value="DM">DM — Delivery (Morning)</option>
             <option value="DE">DE — Delivery (Evening)</option>
             <option value="TM">TM — Takeaway (Morning)</option>
@@ -403,8 +405,16 @@ async function viewBill(billId) {
     if (bill.status === 'completed') {
       let balHtml = '';
       if (diff < -0.005) {
-        balHtml = `<div style="background:#FFEBEE;border:1px solid #EF9A9A;border-radius:8px;padding:8px 12px;margin-top:8px;display:flex;justify-content:space-between;font-size:14px;font-weight:800;color:#C62828;">
-             <span>⚠️ Pending Balance</span><span>-₹${Math.abs(diff).toFixed(2)}</span>
+        const markPaidHtml = (canManage && diff === -grand) 
+          ? `<div style="margin-top:8px; display:flex; gap:6px;">
+               <button onclick="markPaid(${billId}, ${grand}, 'cash')" style="flex:1; padding:6px; font-size:12px; font-weight:700; background:#E8F5E9; color:#2E7D32; border:1px solid #A5D6A7; border-radius:6px; cursor:pointer;">Mark Paid (Cash)</button>
+               <button onclick="markPaid(${billId}, ${grand}, 'upi')" style="flex:1; padding:6px; font-size:12px; font-weight:700; background:#E3F2FD; color:#1565C0; border:1px solid #90CAF9; border-radius:6px; cursor:pointer;">Mark Paid (UPI)</button>
+             </div>` 
+          : '';
+
+        balHtml = `<div style="background:#FFEBEE;border:1px solid #EF9A9A;border-radius:8px;padding:8px 12px;margin-top:8px;font-size:14px;font-weight:800;color:#C62828;">
+             <div style="display:flex;justify-content:space-between;"><span>⚠️ Pending Balance</span><span>-₹${Math.abs(diff).toFixed(2)}</span></div>
+             ${markPaidHtml}
            </div>`;
       } else if (diff > 0.005) {
         const isSettled = bill.change_settled;
@@ -470,6 +480,21 @@ async function toggleSettleChange(billId) {
     loadBills(currentPage);
   } catch (err) {
     showToast('❌ ' + err.message, 'danger');
+  }
+}
+
+async function markPaid(billId, grandTotal, method) {
+  if (!confirm(`Mark bill as fully paid via ${method.toUpperCase()}?`)) return;
+  try {
+    await apiFetch(`/bills/${billId}/mark-paid`, {
+      method: 'POST',
+      body: JSON.stringify({ payment_method: method, grand_total: grandTotal })
+    });
+    showToast('✅ Bill marked as paid', 'success');
+    viewBill(billId);
+    loadBills(currentPage);
+  } catch(e) {
+    showToast('❌ ' + e.message, 'danger');
   }
 }
 

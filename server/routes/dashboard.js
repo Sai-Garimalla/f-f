@@ -19,6 +19,8 @@ router.get('/stats', async (req, res) => {
     const period = req.query.period || 'today'; // today | week | month | year | custom
     const customFrom = req.query.from || null;
     const customTo   = req.query.to   || null;
+    const fromTime   = req.query.from_time || null;
+    const toTime     = req.query.to_time || null;
 
     let dateFilter, chartGroupBy, chartInterval, chartLabel;
 
@@ -70,6 +72,9 @@ router.get('/stats', async (req, res) => {
         chartLabel = 'hour';
       }
     }
+
+    if (fromTime) dateFilter += ` AND TIME(${IST_CREATED}) >= '${fromTime}:00'`;
+    if (toTime) dateFilter += ` AND TIME(${IST_CREATED}) <= '${toTime}:59'`;
 
     // ── Core sales + type breakdown ──
     const [sales] = await pool.execute(
@@ -204,6 +209,50 @@ router.get('/stats', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Item Sales full report ──
+router.get('/item-sales', async (req, res) => {
+  try {
+    const period = req.query.period || 'today';
+    const customFrom = req.query.from || null;
+    const customTo   = req.query.to   || null;
+    const fromTime   = req.query.from_time || null;
+    const toTime     = req.query.to_time || null;
+    
+    let dateFilter;
+    const todayStr = getISTDateStr();
+
+    switch (period) {
+      case 'yesterday': dateFilter = `DATE(${IST_CREATED}) = '${getISTDateStr(-1)}'`; break;
+      case 'week':      dateFilter = `DATE(${IST_CREATED}) >= DATE_SUB('${todayStr}', INTERVAL 6 DAY)`; break;
+      case 'month':     dateFilter = `MONTH(${IST_CREATED})=MONTH('${todayStr}') AND YEAR(${IST_CREATED})=YEAR('${todayStr}')`; break;
+      case 'year':      dateFilter = `YEAR(${IST_CREATED})=YEAR('${todayStr}')`; break;
+      case 'custom':    dateFilter = `DATE(${IST_CREATED}) BETWEEN '${customFrom || todayStr}' AND '${customTo || todayStr}'`; break;
+      case 'all':       dateFilter = `1=1`; break;
+      default:          dateFilter = `DATE(${IST_CREATED}) = '${todayStr}'`;
+    }
+
+    if (fromTime) dateFilter += ` AND TIME(${IST_CREATED}) >= '${fromTime}:00'`;
+    if (toTime) dateFilter += ` AND TIME(${IST_CREATED}) <= '${toTime}:59'`;
+    if (req.query.day) {
+      dateFilter += ` AND DAYOFWEEK(${IST_CREATED}) = ${parseInt(req.query.day)}`;
+    }
+
+    const sql = `
+      SELECT bi.item_name, bi.item_code, m.category,
+             SUM(bi.quantity) AS qty,
+             SUM(bi.line_total) AS revenue
+      FROM bill_items bi
+      JOIN bills b ON bi.bill_id = b.bill_id
+      LEFT JOIN menu m ON bi.item_code = m.item_code
+      WHERE ${dateFilter} AND b.status = 'completed'
+      GROUP BY bi.item_name, bi.item_code, m.category
+      ORDER BY qty DESC
+    `;
+    const [items] = await pool.execute(sql);
+    res.json({ items });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Personal Delivery Boy Dashboard ──

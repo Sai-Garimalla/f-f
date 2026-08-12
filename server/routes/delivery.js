@@ -5,6 +5,14 @@ const { authenticateToken, requireDeliveryBoy, requireAdminOrStaff, requireKitch
 
 router.use(authenticateToken);
 
+// Helper: get current IST date string
+function getISTDateStr(offset = 0) {
+  const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  if (offset) now.setDate(now.getDate() + offset);
+  return now.toISOString().split('T')[0];
+}
+const IST_CREATED = "CONVERT_TZ(b.created_at,'+00:00','+05:30')";
+
 // ─────────────────────────────────────────────
 // DELIVERY BOY ROUTES
 // ─────────────────────────────────────────────
@@ -23,6 +31,37 @@ router.get('/orders', requireDeliveryBoy, async (req, res) => {
       ? `WHERE b.order_type LIKE '%Delivery%' AND b.status = 'completed'`
       : `WHERE (b.order_type LIKE '%Delivery%' OR b.order_type LIKE '%Takeaway%') AND b.status = 'completed'`;
     const params = [];
+
+    const period = req.query.period || 'all'; // Default to all to show pending easily
+    const customFrom = req.query.from || null;
+    const customTo = req.query.to || null;
+    const todayStr = getISTDateStr();
+
+    let dateFilter = '';
+    switch (period) {
+      case 'today':
+        dateFilter = `DATE(${IST_CREATED}) = '${todayStr}'`;
+        break;
+      case 'yesterday':
+        dateFilter = `DATE(${IST_CREATED}) = '${getISTDateStr(-1)}'`;
+        break;
+      case 'week':
+        dateFilter = `DATE(${IST_CREATED}) >= DATE_SUB('${todayStr}', INTERVAL 6 DAY)`;
+        break;
+      case 'month':
+        dateFilter = `MONTH(${IST_CREATED}) = MONTH('${todayStr}') AND YEAR(${IST_CREATED}) = YEAR('${todayStr}')`;
+        break;
+      case 'custom':
+        dateFilter = `DATE(${IST_CREATED}) BETWEEN '${customFrom || todayStr}' AND '${customTo || todayStr}'`;
+        break;
+      case 'all':
+      default:
+        dateFilter = '';
+    }
+
+    if (dateFilter) {
+      where += ` AND ${dateFilter}`;
+    }
 
     if (isDeliveryBoy) {
       // Delivery boys see: undelivered Delivery orders OR Delivery orders assigned/delivered by them

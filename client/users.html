@@ -9,9 +9,9 @@
   .user-card { background:#fff; border:1px solid #FFCC80; border-radius:12px; padding:16px; display:flex; align-items:center; gap:14px; transition:.15s; }
   .user-card:hover { border-color:#E65100; background:#FFF8F0; }
   .user-av { width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,#E65100,#FF8F00); color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; flex-shrink:0; }
-  .user-info { flex:1; }
-  .user-name { font-size:14px; font-weight:700; color:#3E2000; }
-  .user-meta { font-size:11px; color:#8D6E63; margin-top:2px; }
+  .user-info { flex:1; min-width: 0; }
+  .user-name { font-size:14px; font-weight:700; color:#3E2000; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .user-meta { font-size:11px; color:#8D6E63; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .badge-admin { background:#FFF3E0; color:#E65100; border:1px solid #FFCC80; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
   .badge-staff { background:#E8F5E9; color:#2E7D32; border:1px solid #A5D6A7; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
   .badge-delivery { background:#E3F2FD; color:#1565C0; border:1px solid #90CAF9; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
@@ -53,13 +53,10 @@
         <input type="text" id="m-username" class="form-control" placeholder="e.g. ravi123">
       </div>
       <div class="form-group">
-        <label class="form-label">Phone</label>
+        <label class="form-label" id="phone-label">Phone</label>
         <input type="tel" id="m-phone" class="form-control" placeholder="10-digit mobile">
       </div>
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input type="email" id="m-email" class="form-control" placeholder="optional">
-      </div>
+
       <div class="form-group" id="pw-group">
         <label class="form-label">Password *</label>
         <input type="password" id="m-password" class="form-control" placeholder="Min 6 characters">
@@ -111,14 +108,14 @@ async function loadUsers() {
         <div class="user-av">${u.full_name[0].toUpperCase()}</div>
         <div class="user-info">
           <div class="user-name">${u.full_name}</div>
-          <div class="user-meta">@${u.username}${u.phone ? ' · 📞'+u.phone : ''}</div>
+          <div class="user-meta">@${u.username}</div>
           <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
             <span class="${u.role==='admin'?'badge-admin':(u.role==='delivery_boy'?'badge-delivery':(u.role==='kitchen'?'badge-kitchen':'badge-staff'))}">${u.role==='admin'?'🔑 Admin':(u.role==='delivery_boy'?'🛵 Delivery Boy':(u.role==='kitchen'?'🍳 Kitchen':'👨‍🍳 Staff'))}</span>
             ${u.status==='inactive'?'<span class="badge-inactive">Inactive</span>':''}
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <button class="btn btn-secondary btn-sm" onclick="openEditModal(${u.id},'${u.full_name.replace(/'/g,"\\'")}','${u.phone||''}','${u.email||''}','${u.role}','${u.status}')">✏️ Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick="openEditModal(${u.id},'${u.full_name.replace(/'/g,"\\'")}','${u.username.replace(/'/g,"\\'")}','${u.phone||''}','${u.role}','${u.status}')">✏️ Edit</button>
           ${u.id!==parseInt('${getUser().id}') ? `<button class="btn btn-sm" style="background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A" onclick="deactivateUser(${u.id})">🚫 Disable</button>` : ''}
         </div>
       </div>`).join('');
@@ -132,7 +129,6 @@ function openAddModal() {
   document.getElementById('m-name').value='';
   document.getElementById('m-username').value='';
   document.getElementById('m-phone').value='';
-  document.getElementById('m-email').value='';
   document.getElementById('m-password').value='';
   document.getElementById('m-role').value='staff';
   document.getElementById('m-status').value='active';
@@ -142,19 +138,26 @@ function openAddModal() {
   document.getElementById('user-modal').classList.add('open');
 }
 
-function openEditModal(id, name, phone, email, role, status) {
+function openEditModal(id, name, username, phone, role, status) {
   editingId = id;
   document.getElementById('modal-title').textContent = 'Edit Staff User';
   document.getElementById('modal-error').style.display='none';
   document.getElementById('m-name').value=name;
+  document.getElementById('m-username').value=username;
   document.getElementById('m-phone').value=phone;
-  document.getElementById('m-email').value=email;
   document.getElementById('m-role').value=role;
   document.getElementById('m-status').value=status;
   document.getElementById('pw-group').style.display='none';
   document.getElementById('status-group').style.display='block';
+  togglePhoneLabel();
   document.getElementById('user-modal').classList.add('open');
 }
+
+function togglePhoneLabel() {
+  const isDelivery = document.getElementById('m-role').value === 'delivery_boy';
+  document.getElementById('phone-label').textContent = isDelivery ? 'Phone *' : 'Phone';
+}
+document.getElementById('m-role').addEventListener('change', togglePhoneLabel);
 
 function closeModal() { document.getElementById('user-modal').classList.remove('open'); }
 
@@ -164,21 +167,32 @@ async function saveUser() {
   const btn = document.getElementById('modal-save-btn');
   btn.disabled=true; btn.textContent='Saving…';
   try {
+    const role = document.getElementById('m-role').value;
+    const phone = document.getElementById('m-phone').value;
+    if (role === 'delivery_boy' && !phone) {
+      throw new Error('Phone number is required for Delivery Boys.');
+    }
+
     if (editingId) {
       await apiFetch(`/users/${editingId}`, { method:'PATCH', body: JSON.stringify({
         full_name: document.getElementById('m-name').value,
-        phone: document.getElementById('m-phone').value,
+        username: document.getElementById('m-username').value,
         role: document.getElementById('m-role').value,
         status: document.getElementById('m-status').value,
       })});
+      if (editingId === parseInt(user.id)) {
+        const u = getUser();
+        u.full_name = document.getElementById('m-name').value;
+        u.username = document.getElementById('m-username').value;
+        localStorage.setItem('ff_user', JSON.stringify(u));
+        initSidebar('users');
+      }
     } else {
       const pw = document.getElementById('m-password').value;
       if (pw.length < 6) throw new Error('Password must be at least 6 characters.');
       await apiFetch('/users', { method:'POST', body: JSON.stringify({
         full_name: document.getElementById('m-name').value,
         username: document.getElementById('m-username').value,
-        phone: document.getElementById('m-phone').value,
-        email: document.getElementById('m-email').value,
         password: pw,
         role: document.getElementById('m-role').value,
       })});

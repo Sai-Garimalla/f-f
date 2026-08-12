@@ -8,15 +8,15 @@ router.use(authenticateToken);
 // ── Phone number suggestions (partial search) ──
 router.get('/phone-suggest', async (req, res) => {
   try {
-    const q = (req.query.q || '').trim().replace(/\D/g, '');
+    const q = (req.query.q || '').trim();
     if (!q) return res.json([]);
     const [rows] = await pool.execute(
       `SELECT DISTINCT customer_phone, customer_name
        FROM bills
-       WHERE customer_phone LIKE ? AND customer_phone IS NOT NULL AND status='completed'
+       WHERE (customer_phone LIKE ? OR LOWER(customer_name) LIKE LOWER(?)) AND customer_phone IS NOT NULL AND status='completed'
        ORDER BY MAX(created_at) DESC
        LIMIT 10`,
-      [`%${q}%`]
+      [`%${q}%`, `%${q}%`]
     );
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -70,6 +70,54 @@ router.get('/customer/:phone', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Customer lookup by name ──
+router.get('/customer-by-name/:name', async (req, res) => {
+  try {
+    const nameQuery = req.params.name;
+    const [infoResult] = await pool.execute(
+      "SELECT customer_phone, customer_name FROM bills WHERE LOWER(customer_name) LIKE LOWER(?) AND status='completed' ORDER BY created_at DESC LIMIT 1",
+      [`%${nameQuery}%`]
+    );
+    const customer_phone = infoResult.length ? infoResult[0].customer_phone : null;
+    const full_customer_name = infoResult.length ? infoResult[0].customer_name : nameQuery;
+
+    const [orders] = await pool.execute(
+      `SELECT b.bill_id, b.bill_number, b.token_number, b.created_at,
+              b.grand_total, b.order_type, b.subtotal, b.discount_amount
+       FROM bills b WHERE LOWER(b.customer_name) LIKE LOWER(?) AND b.status='completed'
+       ORDER BY b.created_at DESC LIMIT 20`,
+      [`%${nameQuery}%`]
+    );
+
+    const [totals] = await pool.execute(
+      "SELECT COALESCE(SUM(grand_total),0) AS total_spent, COUNT(*) AS visit_count FROM bills WHERE LOWER(customer_name) LIKE LOWER(?) AND status='completed'",
+      [`%${nameQuery}%`]
+    );
+
+    const [itemHistory] = await pool.execute(
+      `SELECT bi.item_name,
+              SUM(bi.quantity)  AS total_qty,
+              SUM(bi.line_total) AS total_spent,
+              COUNT(DISTINCT bi.bill_id) AS order_count
+       FROM bill_items bi
+       JOIN bills b ON bi.bill_id = b.bill_id
+       WHERE LOWER(b.customer_name) LIKE LOWER(?) AND b.status='completed'
+       GROUP BY bi.item_name
+       ORDER BY total_qty DESC`,
+      [`%${nameQuery}%`]
+    );
+
+    res.json({
+      customer_name: full_customer_name,
+      customer_phone,
+      total_spent:  parseFloat(totals[0].total_spent),
+      visit_count:  parseInt(totals[0].visit_count),
+      history:      orders,
+      item_history: itemHistory
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── GET list of bills with filters + ordering ──
 // ── GET list of bills with filters + ordering ──
 router.get('/', async (req, res) => {
@@ -95,8 +143,14 @@ router.get('/', async (req, res) => {
       params.push(date);
     }
     if (tokenPrefix) {
-      where += ' AND b.token_prefix = ?';
-      params.push(tokenPrefix);
+      if (tokenPrefix === 'Delivery') {
+        where += " AND b.token_prefix IN ('DM', 'DE')";
+      } else if (tokenPrefix === 'Takeaway') {
+        where += " AND b.token_prefix IN ('TM', 'TE')";
+      } else {
+        where += ' AND b.token_prefix = ?';
+        params.push(tokenPrefix);
+      }
     }
 
     if (paymentStatus === 'paid') {
@@ -151,6 +205,26 @@ router.get('/:billId', async (req, res) => {
     if (!bills.length) return res.status(404).json({ error: 'Bill not found.' });
     const [items] = await pool.execute('SELECT * FROM bill_items WHERE bill_id=? ORDER BY id', [req.params.billId]);
     res.json({ bill: bills[0], items });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── POST mark as paid ──
+router.post('/:billId/mark-paid', async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+      return res.status(403).json({ error: 'Access denied. Only admin or staff can update payment status.' });
+    }
+    const { payment_method, grand_total } = req.body;
+    let cash = 0, upi = 0;
+    if (payment_method === 'cash') cash = grand_total;
+    if (payment_method === 'upi') upi = grand_total;
+    
+    const [result] = await pool.execute(
+      "UPDATE bills SET cash_collected=?, upi_collected=? WHERE bill_id=?",
+      [cash, upi, req.params.billId]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Bill not found' });
+    res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

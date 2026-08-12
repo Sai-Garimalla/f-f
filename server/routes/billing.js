@@ -263,6 +263,12 @@ async function buildCounterChecklist(bill, items, settings) {
   c += DLINE + LF;
   c += BOLD_ON + pad('GRAND TOTAL', 36) + padL(parseFloat(bill.grand_total).toFixed(2), 12) + LF + BOLD_OFF;
   c += DLINE + LF;
+  
+  if (bill.order_type && (bill.order_type.includes('Takeaway') || bill.order_type.includes('Delivery'))) {
+    c += BOLD_ON + 'Payment Status: [ ] PAID    [ ] UNPAID' + BOLD_OFF + LF;
+    c += DLINE + LF;
+  }
+
   const clerk = bill.cashier_name || '____________';
   c += 'Packed by: ' + pad(clerk, 14) + ' Checked by: ' + pad(clerk, 14) + LF;
   c += LF + LF + LF + CUT;
@@ -279,7 +285,8 @@ router.post('/', async (req, res) => {
       items, customer_name, customer_phone, delivery_address, order_type, custom_note,
       delivery_enabled, delivery_charge,
       discount_enabled, discount_type, discount_value, discount_amount,
-      subtotal, grand_total, status, token_number, print_intent
+      subtotal, grand_total, status, token_number, print_intent,
+      cash_collected, upi_collected
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -300,8 +307,8 @@ router.post('/', async (req, res) => {
        (bill_number, token_number, token_prefix, customer_name, customer_phone, order_type, delivery_address, custom_note,
         subtotal, delivery_enabled, delivery_charge,
         discount_enabled, discount_type, discount_value, discount_amount,
-        grand_total, status, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        grand_total, status, created_by, created_at, cash_collected, upi_collected)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         billNumber, token, prefix,
         customer_name || null, customer_phone || null,
@@ -310,7 +317,8 @@ router.post('/', async (req, res) => {
         delivery_enabled ? 1 : 0, delivery_charge || 0,
         discount_enabled ? 1 : 0, discount_type || 'fixed',
         discount_value || 0, discount_amount || 0,
-        grand_total, billStatus, req.user.id, now
+        grand_total, billStatus, req.user.id, now,
+        cash_collected || 0, upi_collected || 0
       ]
     );
 
@@ -422,7 +430,8 @@ router.put('/:billId', async (req, res) => {
       items, customer_name, customer_phone, delivery_address, order_type, custom_note,
       delivery_enabled, delivery_charge,
       discount_enabled, discount_type, discount_value, discount_amount,
-      subtotal, grand_total, status, print_intent
+      subtotal, grand_total, status, print_intent,
+      cash_collected, upi_collected
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -436,7 +445,7 @@ router.put('/:billId', async (req, res) => {
         customer_name=?, customer_phone=?, order_type=?, delivery_address=?, custom_note=?,
         subtotal=?, delivery_enabled=?, delivery_charge=?,
         discount_enabled=?, discount_type=?, discount_value=?, discount_amount=?,
-        grand_total=?, status=?
+        grand_total=?, status=?, cash_collected=?, upi_collected=?
        WHERE bill_id=?`,
       [
         customer_name || null, customer_phone || null,
@@ -445,7 +454,7 @@ router.put('/:billId', async (req, res) => {
         delivery_enabled ? 1 : 0, delivery_charge || 0,
         discount_enabled ? 1 : 0, discount_type || 'fixed',
         discount_value || 0, discount_amount || 0,
-        grand_total, billStatus, billId
+        grand_total, billStatus, cash_collected || 0, upi_collected || 0, billId
       ]
     );
 

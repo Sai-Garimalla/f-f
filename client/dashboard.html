@@ -15,7 +15,7 @@
   .date-range.show { display:flex; }
 
   /* KPIs */
-  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:16px; }
   .kpi { background:#fff; border:1px solid #FFE0B2; border-radius:12px; padding:14px 16px; transition:.15s; position:relative; overflow:hidden; }
   .kpi:hover { border-color:#E65100; transform:translateY(-1px); box-shadow:0 4px 16px rgba(230,81,0,.12); }
   .kpi-icon { font-size:22px; margin-bottom:4px; }
@@ -34,7 +34,7 @@
   .kpi.cancelled-earn:hover { border-color:#C62828; box-shadow:0 4px 16px rgba(198,40,40,.12); }
 
   /* Type breakdown */
-  .type-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+  .type-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:16px; }
   .type-card { border-radius:12px; padding:14px; color:#fff; text-align:center; }
   .type-card.dinein  { background:linear-gradient(135deg,#E65100,#FF6D00); }
   .type-card.takeaway{ background:linear-gradient(135deg,#1565C0,#1E88E5); }
@@ -44,7 +44,7 @@
   .type-lbl { font-size:10px; opacity:.75; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
 
   /* Extra metrics row */
-  .metric-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+  .metric-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:16px; }
   .metric { background:linear-gradient(135deg,#FFF3E0,#FFE0B2); border-radius:10px; padding:12px 14px; }
   .metric-val { font-size:16px; font-weight:800; color:#BF360C; }
   .metric-lbl { font-size:10px; color:#8D6E63; margin-top:2px; text-transform:uppercase; letter-spacing:.4px; }
@@ -57,7 +57,7 @@
   .chart-label { flex:1; text-align:center; }
 
   /* Peak hours heatmap */
-  .hour-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .hour-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:6px; }
   .hour-cell { border-radius:8px; padding:8px 10px; text-align:center; font-size:11px; }
   .hour-cell .h-time { font-weight:700; font-size:12px; }
   .hour-cell .h-cnt  { font-size:10px; color:#8D6E63; margin-top:1px; }
@@ -77,13 +77,15 @@
   #period-label { font-size:12px; color:#8D6E63; font-style:italic; margin-left:auto; }
 
   @media(max-width:1024px){
-    .kpi-grid { grid-template-columns:1fr 1fr; }
-    .type-grid { grid-template-columns:1fr 1fr; }
-    .metric-grid { grid-template-columns:1fr 1fr; }
-    .hour-grid { grid-template-columns:repeat(3,1fr); }
     .date-range { flex-wrap:wrap; }
     .top-item-row { grid-template-columns:24px 1fr 45px 75px; }
     .recent-row { grid-template-columns:44px 1fr 65px 65px; }
+  }
+  @media(max-width:400px){
+    .kpi-grid { grid-template-columns:1fr; }
+    .type-grid { grid-template-columns:1fr; }
+    .metric-grid { grid-template-columns:1fr 1fr; }
+    .hour-grid { grid-template-columns:1fr 1fr; }
   }
 </style>
 </head>
@@ -115,6 +117,11 @@
           <span style="font-size:12px;color:#8D6E63">to</span>
           <input type="date" id="range-to" class="form-control" style="max-width:140px;padding:6px 10px;font-size:12px;">
           <button class="btn btn-primary btn-sm" onclick="loadDashboard()">Go</button>
+        </div>
+        <div class="time-range" style="display:flex; gap:8px; align-items:center;">
+          <input type="time" id="range-time-from" class="form-control" style="max-width:110px;padding:6px 10px;font-size:12px;" title="Start Time" onchange="loadDashboard()">
+          <span style="font-size:12px;color:#8D6E63">to</span>
+          <input type="time" id="range-time-to" class="form-control" style="max-width:110px;padding:6px 10px;font-size:12px;" title="End Time" onchange="loadDashboard()">
         </div>
         <span id="period-label"></span>
         <div style="margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -297,6 +304,11 @@ async function loadDashboard() {
   if (period === 'custom') {
     url += `&from=${document.getElementById('range-from').value}&to=${document.getElementById('range-to').value}`;
   }
+  
+  const fromTime = document.getElementById('range-time-from').value;
+  const toTime = document.getElementById('range-time-to').value;
+  if (fromTime) url += `&from_time=${fromTime}`;
+  if (toTime) url += `&to_time=${toTime}`;
 
   document.getElementById('period-label').textContent = `Showing: ${periodLabel(period)}`;
 

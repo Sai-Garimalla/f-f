@@ -293,4 +293,75 @@ router.post('/sync-sheets', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────
+// GET /api/export/complete-db  — Full database export (admin only)
+// ─────────────────────────────────────────────────────────────
+router.get('/complete-db', async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access only' });
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    // Helper: query → worksheet
+    async function addSheet(name, sql, colW) {
+      const [rows] = await pool.execute(sql);
+      if (!rows.length) {
+        const ws = XLSX.utils.aoa_to_sheet([['No data']]);
+        XLSX.utils.book_append_sheet(wb, ws, name);
+        return;
+      }
+      const headers = Object.keys(rows[0]);
+      const data = rows.map(r => headers.map(h => {
+        const v = r[h];
+        if (v instanceof Date) return v.toISOString().replace('T', ' ').slice(0, 19);
+        return v ?? '';
+      }));
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+      ws['!cols'] = headers.map(() => ({ wch: 18 }));
+      if (colW) ws['!cols'] = colW.map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, ws, name);
+    }
+
+    await addSheet('users',
+      'SELECT id,full_name,username,email,phone,role,status,created_at FROM users ORDER BY id',
+      [6,20,16,24,14,12,10,22]);
+
+    await addSheet('menu',
+      'SELECT * FROM menu ORDER BY category, item_name',
+      [6,30,18,10,8,10,8,10,22]);
+
+    await addSheet('bills',
+      `SELECT bill_id,bill_number,token_prefix,token_number,customer_name,customer_phone,
+              order_type,delivery_address,status,subtotal,delivery_charge,discount_amount,
+              grand_total,cash_collected,upi_collected,change_settled,delivery_status,
+              packing_status,created_by,assigned_delivery_boy,delivered_by,
+              created_at,delivered_at FROM bills ORDER BY bill_id`,
+      [8,16,10,8,20,14,14,24,10,10,10,10,12,10,10,10,14,12,8,8,8,22,22]);
+
+    await addSheet('bill_items',
+      'SELECT * FROM bill_items ORDER BY bill_id, id',
+      [8,8,30,12,10,12,10,30]);
+
+    await addSheet('settings',
+      'SELECT * FROM settings ORDER BY key_name');
+
+    await addSheet('token_counter',
+      'SELECT * FROM token_counter ORDER BY id');
+
+    const now = new Date();
+    const ist = new Date(now.getTime() + 5.5 * 3600000);
+    const ts = ist.toISOString().replace('T','_').slice(0,16).replace(':','-');
+    const filename = `FireAndFlavour_Complete_Database_${ts}.xlsx`;
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buf);
+  } catch (err) {
+    console.error('Complete DB export error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

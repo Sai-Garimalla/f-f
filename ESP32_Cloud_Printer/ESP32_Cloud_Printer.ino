@@ -3,8 +3,8 @@
 #include <PubSubClient.h> // By Nick O'Leary
 
 // 1. YOUR RESTAURANT WI-FI
-const char* ssid = "JioFiber-TqU3r";
-const char* password = "he9sahc3wai9ouSa";
+const char* ssid = "FF";
+const char* password = "12345678";
 
 // 2. YOUR HIVEMQ CLOUD DETAILS
 const char* mqtt_server = "59b8ba9dc83641cba7c38e8392dde628.s1.eu.hivemq.cloud";
